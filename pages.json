@@ -1,0 +1,22 @@
+{
+  "pages": [
+    {
+      "path": "pages/topics/topics",
+      "style": {
+        "navigationBarTitleText": "PiggyNotebook"
+      }
+    },
+    {
+      "path": "pages/topic-detail/topic-detail",
+      "style": {
+        "navigationBarTitleText": "主题详情"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "PiggyNotebook",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F5F5"
+  }
+}

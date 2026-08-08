@@ -1,0 +1,14 @@
+{
+  "id": "piggynotebook",
+  "name": "piggynotebook",
+  "displayName": "PiggyNotebook",
+  "version": "0.1.0",
+  "description": "Capture fragmented thoughts by voice/text; auto-groups them by topic and keeps a running summary per topic.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {},
+  "engines": {
+    "HBuilderX": "^3.1.0"
+  }
+}

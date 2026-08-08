@@ -1,0 +1,59 @@
+{
+    "name" : "PiggyNotebook",
+    "appid" : "__UNI__158D092",
+    "description" : "Capture fragmented thoughts by voice/text; auto-groups them by topic and keeps a running summary per topic.",
+    "versionName" : "0.1.0",
+    "versionCode" : "1",
+    "transformPx" : false,
+    "app-plus" : {
+        "usingComponents" : true,
+        "nvueCompiler" : "uni-app",
+        "nvueStyleCompiler" : "uni-app",
+        "compilerVersion" : 3,
+        "nvueLaunchMode" : "fast",
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
+        },
+        "modules" : {},
+        "distribute" : {
+            "android" : {
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
+                    "<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>",
+                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>"
+                ]
+            },
+            "ios" : {
+                "dSYMs" : false,
+                "privacyDescription" : {
+                    "NSMicrophoneUsageDescription" : "用于录音输入碎片想法"
+                },
+                "CFBundleDisplayName" : "PiggyNotebook",
+                "CFBundleName" : "PiggyNotebook",
+                "CFBundleVersion" : "0.1.0",
+                "CFBundleShortVersionString" : "0.1.0"
+            },
+            "sdkConfigs" : {},
+            "orientation" : [ "portrait-primary" ]
+        }
+    },
+    "quickapp" : {},
+    "mp-weixin" : {
+        "appid" : "",
+        "setting" : {
+            "urlCheck" : false
+        },
+        "usingComponents" : true
+    },
+    "h5" : {
+        "router" : {
+            "mode" : "history",
+            "base" : ""
+        }
+    },
+    "vueVersion" : "3"
+}
