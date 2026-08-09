@@ -22,8 +22,14 @@
       </view>
 
       <view v-else class="voice-mode-bar">
-        <view class="hold-to-talk-btn" @click="onVoiceTap">
-          <text>按住说话</text>
+        <view
+          class="hold-to-talk-btn"
+          :class="{ recording: recordingState === 'recording', busy: recordingState === 'starting' || recordingState === 'transcribing' }"
+          @touchstart.stop.prevent="onRecordStart"
+          @touchend.stop.prevent="onRecordEnd"
+          @touchcancel.stop.prevent="onRecordCancel"
+        >
+          <text>{{ recordButtonLabel }}</text>
         </view>
         <view class="bar-icon-btn" @click="inputMode = 'text'">
           <text>⌨️</text>
@@ -89,6 +95,11 @@ import {
   setFragmentAnswer
 } from '@/utils/storage.js'
 import { suggestTopic, checkTopicFit, summarizeTopic, answerIfNeeded, AIServiceUnavailableError } from '@/services/ai.js'
+import { recognizeAudio } from '@/services/asr.js'
+
+// Below this, a released hold is almost certainly an accidental tap, not
+// real speech — discard rather than sending near-empty audio to the API.
+const MIN_RECORDING_MS = 500
 
 export default {
   data() {
@@ -98,7 +109,12 @@ export default {
       text: '',
       loading: false,
       stage: 'input', // 'input' | 'review'
-      inputMode: 'text', // 'text' | 'voice' — defaults to text since voice recording isn't wired up yet
+      inputMode: 'text', // 'text' | 'voice'
+      recordingState: 'idle', // 'idle' | 'starting' | 'recording' | 'transcribing'
+      // touchend fired while we were still waiting for the recorder to
+      // actually confirm it started (common on iOS Simulator, where audio
+      // session init can take a couple seconds) — stop as soon as it does
+      pendingStop: false,
       suggestion: null,
       manualNotice: '',
       newTopicTitle: '',
@@ -112,6 +128,12 @@ export default {
     selectedTopic() {
       return this.topics.find(t => t.id === this.selectedTopicId) || null
     },
+    recordButtonLabel() {
+      if (this.recordingState === 'starting') return '连接中…'
+      if (this.recordingState === 'recording') return '松开 发送'
+      if (this.recordingState === 'transcribing') return '识别中…'
+      return '按住说话'
+    },
     pickableTopics() {
       const excludeIds = new Set()
       if (this.suggestion && !this.suggestion.isNewTopic && this.suggestion.topicId) {
@@ -123,6 +145,7 @@ export default {
   },
   mounted() {
     this.refresh()
+    this.setupRecorder()
   },
   methods: {
     /**
@@ -140,10 +163,97 @@ export default {
       }
       this.selectedTopicId = sel
     },
-    onVoiceTap() {
-      // Voice capture isn't implemented yet — say so honestly instead of
-      // pretending to record. Swap this out once real recording + ASR lands.
-      uni.showToast({ title: '语音输入即将上线，先用文字试试吧', icon: 'none' })
+    setupRecorder() {
+      // Created once and reused — uni.getRecorderManager() is a singleton
+      // per app anyway, but keeping our own reference makes intent explicit.
+      this.recorderManager = uni.getRecorderManager()
+      this.recorderManager.onStart(() => this.handleRecordStarted())
+      this.recorderManager.onStop(res => this.handleRecordStop(res))
+      this.recorderManager.onError(err => this.handleRecordError(err))
+    },
+    onRecordStart() {
+      if (this.recordingState !== 'idle' || !this.recorderManager) return
+      // 'starting' is a real, distinct state — the native recorder hasn't
+      // confirmed it's actually rolling yet (audio session init can take a
+      // couple seconds, especially on iOS Simulator). We don't claim
+      // "recording" until handleRecordStarted actually fires.
+      this.recordingState = 'starting'
+      this.pendingStop = false
+      try {
+        this.recorderManager.start({
+          format: 'aac',
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          encodeBitRate: 48000,
+          duration: 60000 // hard cap — matches typical short-audio ASR limits
+        })
+      } catch (e) {
+        console.error('Recorder start failed:', e)
+        this.recordingState = 'idle'
+        uni.showToast({ title: '录音启动失败', icon: 'none' })
+      }
+    },
+    handleRecordStarted() {
+      if (this.recordingState !== 'starting') return
+      this.recordingState = 'recording'
+      // user already released before the native recorder caught up —
+      // honor that now instead of leaving it stuck "recording"
+      if (this.pendingStop) {
+        this.pendingStop = false
+        this.recorderManager.stop()
+      }
+    },
+    onRecordEnd() {
+      if (this.recordingState === 'starting') {
+        this.pendingStop = true
+        return
+      }
+      if (this.recordingState !== 'recording') return
+      // stop() is async — recordingState flips to 'transcribing' once
+      // handleRecordStop actually has a file to work with.
+      this.recorderManager.stop()
+    },
+    onRecordCancel() {
+      // Touch got interrupted (e.g. an OS gesture stole it) — still stop
+      // cleanly so the recorder isn't left running in the background.
+      if (this.recordingState === 'starting') {
+        this.pendingStop = true
+        return
+      }
+      if (this.recordingState === 'recording') this.recorderManager.stop()
+    },
+    async handleRecordStop(res) {
+      if (!res || !res.tempFilePath) {
+        this.recordingState = 'idle'
+        return
+      }
+      if (res.duration < MIN_RECORDING_MS) {
+        this.recordingState = 'idle'
+        uni.showToast({ title: '说话时间太短了', icon: 'none' })
+        return
+      }
+      this.recordingState = 'transcribing'
+      try {
+        const transcribed = await recognizeAudio(res.tempFilePath)
+        if (!transcribed) {
+          uni.showToast({ title: '没听清，再说一次吧', icon: 'none' })
+          return
+        }
+        // Feed straight into the same pipeline typed text uses — voice is
+        // just an alternate input method, not a separate flow.
+        this.text = transcribed
+        await this.onNext()
+      } catch (e) {
+        console.error('ASR failed:', e.message)
+        uni.showToast({ title: '语音识别暂不可用', icon: 'none' })
+      } finally {
+        this.recordingState = 'idle'
+      }
+    },
+    handleRecordError(err) {
+      console.error('Recorder error:', err)
+      this.recordingState = 'idle'
+      uni.showToast({ title: '录音失败，请检查麦克风权限', icon: 'none' })
     },
     async onNext() {
       if (!this.text.trim() || this.loading) return
@@ -361,6 +471,12 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.hold-to-talk-btn.recording {
+  background: #DD524D;
+}
+.hold-to-talk-btn.busy {
+  background: #ccc;
 }
 
 /* review overlay */
