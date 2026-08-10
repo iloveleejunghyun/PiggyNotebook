@@ -1,10 +1,7 @@
-
-"您已进入监控区域，用英语怎么说"。没有返回AI回复。
-
-*The summary is not so good:
-	"在英语学习方法主题下，探讨了背英语单词的方式，指出xxx不一定好"。这是废话。总结应该就是用户的观点用bullets的形式呈现出来然后观点可能需要分类整理,有的放在一起。
-	还有就是用户问单词意思等，应该把AI翻译的意思也总结下来。比如说总结区域有个单词表，里面记录了所有用户询问的单词、句子意思。
-*Wait for several seconds after pressing "Send" while there's no change at all. Feel like it's stuck there.
+*Track user actions.
+*Use pugongying to release test version.
+*Change app name and icon.
+*Add QRCode for testing users.
 
 *Delete the fragment.
 
@@ -14,7 +11,8 @@
 	把用户的常用指令做成工具调用。
 	主题也可以做成工具调用？
 
-*一问一答的回答应该简短，限定字数，用户不会用这个笔记来查非常繁复的回答。但是总结部分却可能随着碎片的增多而越来越长，这个是无法避免的事情，但是200个字的限制肯定短了(当然以后我们可以把总结也分成多段)。
+*一问一答的回答应该简短，限定字数，用户不会用这个笔记来查非常繁复的回答。但
+是总结部分却可能随着碎片的增多而越来越长，这个是无法避免的事情，但是200个字的限制肯定短了(当然以后我们可以把总结也分成多段)。
 
 *英语学习的总结不好。应该是一个用户问过的单词/句子列表，然后附带解释。
 
@@ -34,3 +32,10 @@ Done:
 
 *Topic 界面不能滑动。ASAP.没有问题了。奇怪。
 *点进一个主题后，选择的主题切换到该主题，同时也需要保留录入想法的功能，就是最底层的输入模块保留原位置。
+
+"您已进入监控区域，用英语怎么说"。没有返回AI回复。
+
+*The summary is not so good:
+	"在英语学习方法主题下，探讨了背英语单词的方式，指出xxx不一定好"。这是废话。总结应该就是用户的观点用bullets的形式呈现出来然后观点可能需要分类整理,有的放在一起。
+	还有就是用户问单词意思等，应该把AI翻译的意思也总结下来。比如说总结区域有个单词表，里面记录了所有用户询问的单词、句子意思。
+*Wait for several seconds after pressing "Send" while there's no change at all. Feel like it's stuck there.

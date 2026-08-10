@@ -111,7 +111,7 @@ ${text}
 
   // Low temperature — this is a classification task, we want consistent
   // categorization, not creative variation between near-identical inputs.
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0.1, 'suggestTopic')
+  const content = await chatCompletion([{ role: 'user', content: prompt }], 0, 'suggestTopic')
   const parsed = extractJSON(content)
 
   if (typeof parsed.suggestedTitle !== 'string' || typeof parsed.isNewTopic !== 'boolean') {
@@ -166,7 +166,7 @@ ${text}
 - 如果不适合，给出更合适的去向：{"fits": false, "topicId": "更合适的已有主题id，如果建议新建主题则为null", "suggestedTitle": "主题名称（已有主题则原样返回其title，新主题则给一个简洁的标题，不超过12个字）", "isNewTopic": true或false}`
 
   // Low temperature — this is a classification task, not creative writing.
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0.1, 'checkTopicFit')
+  const content = await chatCompletion([{ role: 'user', content: prompt }], 0, 'checkTopicFit')
   const parsed = extractJSON(content)
 
   if (typeof parsed.fits !== 'boolean') {
@@ -217,7 +217,7 @@ ${text}
 - 不需要回答：{"needsAnswer": false}
 - 需要且能回答：{"needsAnswer": true, "answer": "回答内容"}`
 
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0.3, 'answerIfNeeded')
+  const content = await chatCompletion([{ role: 'user', content: prompt }], 0.1, 'answerIfNeeded')
   const parsed = extractJSON(content)
 
   if (typeof parsed.needsAnswer !== 'boolean') {
