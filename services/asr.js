@@ -74,9 +74,16 @@ function readFileBase64(filePath) {
 // uni.request lower/upper-cases response headers inconsistently across
 // platforms — check both, same defensive pattern the reference
 // implementation used for wx.request.
+// Response header casing isn't standardized across platforms — iOS and
+// Android's native HTTP clients normalize it differently (e.g.
+// "X-Api-Status-Code" vs "x-api-status-code" vs something else entirely).
+// Checking 3 hardcoded variants missed Android's actual casing; scan
+// case-insensitively instead so this doesn't depend on guessing right.
 function getHeader(headers, name) {
   if (!headers) return undefined
-  return headers[name] ?? headers[name.toLowerCase()] ?? headers[name.toUpperCase()]
+  const target = name.toLowerCase()
+  const key = Object.keys(headers).find(k => k.toLowerCase() === target)
+  return key !== undefined ? headers[key] : undefined
 }
 
 /**
