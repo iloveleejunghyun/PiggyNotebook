@@ -258,6 +258,11 @@ export default {
     async onNext() {
       if (!this.text.trim() || this.loading) return
       this.loading = true
+      // The soft keyboard staying open was hiding the only loading signal
+      // (a small "…" on the send button) — dismiss it and show something
+      // unmissable instead, so a multi-second AI call never looks frozen.
+      uni.hideKeyboard()
+      uni.showLoading({ title: 'AI 思考中…', mask: true })
       try {
         if (this.selectedTopic) {
           await this.captureWithSelectedTopic()
@@ -266,6 +271,7 @@ export default {
         }
       } finally {
         this.loading = false
+        uni.hideLoading()
       }
     },
     // Fast path: a topic is already selected, so just check it still fits
@@ -367,6 +373,7 @@ export default {
         const topic = getTopics().find(t => t.id === topicId)
         if (!topic) return
         const summary = await summarizeTopic(topic)
+        console.log('[summary] updated:', summary)
         updateTopicSummary(topicId, summary)
         this.topics = getTopics()
         this.$emit('changed')
@@ -383,7 +390,11 @@ export default {
         const topic = getTopics().find(t => t.id === topicId)
         if (!topic) return
         const result = await answerIfNeeded(fragmentText, { title: topic.title, summary: topic.summary })
-        if (!result.needsAnswer) return
+        if (!result.needsAnswer) {
+          console.log('[answer] AI declined to answer:', fragmentText)
+          return
+        }
+        console.log('[answer] AI answered:', fragmentText, '->', result.answer)
         setFragmentAnswer(topicId, fragmentId, result.answer)
         this.topics = getTopics()
         this.$emit('changed')

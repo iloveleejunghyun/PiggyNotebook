@@ -141,6 +141,7 @@ export default {
   color: #333;
   line-height: 1.6;
   margin-bottom: 20rpx;
+  white-space: pre-wrap; /* preserve the AI's bullet/line-break formatting instead of squashing it into one paragraph */
 }
 .refresh-btn {
   align-self: flex-start;
