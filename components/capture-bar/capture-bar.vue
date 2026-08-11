@@ -103,6 +103,7 @@ import {
 } from '@/utils/analytics.js'
 import { suggestTopic, checkTopicFit, summarizeTopic, answerIfNeeded, AIServiceUnavailableError } from '@/services/ai.js'
 import { recognizeAudio } from '@/services/asr.js'
+import { setRecorderHandlers, startRecording, stopRecording } from '@/utils/recorder.js'
 
 // Below this, a released hold is almost certainly an accidental tap, not
 // real speech — discard rather than sending near-empty audio to the API.
@@ -172,15 +173,23 @@ export default {
       this.selectedTopicId = sel
     },
     setupRecorder() {
-      // Created once and reused — uni.getRecorderManager() is a singleton
-      // per app anyway, but keeping our own reference makes intent explicit.
-      this.recorderManager = uni.getRecorderManager()
-      this.recorderManager.onStart(() => this.handleRecordStarted())
-      this.recorderManager.onStop(res => this.handleRecordStop(res))
-      this.recorderManager.onError(err => this.handleRecordError(err))
+      // CLAIMS the shared recorder's callbacks for this instance — see
+      // utils/recorder.js for why this can't just be uni.getRecorderManager()
+      // called directly here (that was the bug: multiple pages' CaptureBar
+      // instances all registering listeners on the same device singleton).
+      setRecorderHandlers({
+        onStart: () => this.handleRecordStarted(),
+        onStop: res => this.handleRecordStop(res),
+        onError: err => this.handleRecordError(err)
+      })
     },
     onRecordStart() {
-      if (this.recordingState !== 'idle' || !this.recorderManager) return
+      if (this.recordingState !== 'idle') return
+      // Re-claim on every press, not just on mount — if this page has been
+      // sitting in the background (via navigateTo) while another page's
+      // CaptureBar claimed the recorder since, this makes sure OUR handlers
+      // are the ones actually wired up before we start recording.
+      this.setupRecorder()
       // 'starting' is a real, distinct state — the native recorder hasn't
       // confirmed it's actually rolling yet (audio session init can take a
       // couple seconds, especially on iOS Simulator). We don't claim
@@ -188,7 +197,7 @@ export default {
       this.recordingState = 'starting'
       this.pendingStop = false
       try {
-        this.recorderManager.start({
+        startRecording({
           format: 'aac',
           sampleRate: 16000,
           numberOfChannels: 1,
@@ -208,7 +217,7 @@ export default {
       // honor that now instead of leaving it stuck "recording"
       if (this.pendingStop) {
         this.pendingStop = false
-        this.recorderManager.stop()
+        stopRecording()
       }
     },
     onRecordEnd() {
@@ -219,7 +228,7 @@ export default {
       if (this.recordingState !== 'recording') return
       // stop() is async — recordingState flips to 'transcribing' once
       // handleRecordStop actually has a file to work with.
-      this.recorderManager.stop()
+      stopRecording()
     },
     onRecordCancel() {
       // Touch got interrupted (e.g. an OS gesture stole it) — still stop
@@ -228,7 +237,7 @@ export default {
         this.pendingStop = true
         return
       }
-      if (this.recordingState === 'recording') this.recorderManager.stop()
+      if (this.recordingState === 'recording') stopRecording()
     },
     async handleRecordStop(res) {
       if (!res || !res.tempFilePath) {
