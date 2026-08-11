@@ -3,6 +3,9 @@
 *Change app name and icon.
 *Add QRCode for testing users.
 
+*Presssed voice input and then show gray "连接中...",No change.
+	speak on topic page, then go to home and speak, which will occur.
+	Is there a stable way of developing button events & state changes.
 *Delete the fragment.
 
 *temparature设置为0以便于调试。在我们这个应用场景下应该不需要变化吧？
