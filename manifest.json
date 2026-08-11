@@ -74,6 +74,10 @@
         }
     },
     "quickapp" : {},
+    "uniStatistics" : {
+        "enable" : true,
+        "version" : "1"
+    },
     "mp-weixin" : {
         "appid" : "",
         "setting" : {

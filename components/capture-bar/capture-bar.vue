@@ -94,6 +94,13 @@ import {
   updateTopicSummary,
   setFragmentAnswer
 } from '@/utils/storage.js'
+import {
+  trackFragmentSaved,
+  trackTopicCreated,
+  trackSummaryGenerated,
+  trackAIAnswerGiven,
+  trackTopicReached3Fragments
+} from '@/utils/analytics.js'
 import { suggestTopic, checkTopicFit, summarizeTopic, answerIfNeeded, AIServiceUnavailableError } from '@/services/ai.js'
 import { recognizeAudio } from '@/services/asr.js'
 
@@ -115,6 +122,7 @@ export default {
       // actually confirm it started (common on iOS Simulator, where audio
       // session init can take a couple seconds) — stop as soon as it does
       pendingStop: false,
+      lastInputSource: 'text', // 'text' | 'voice' — for analytics only, reset after each save
       suggestion: null,
       manualNotice: '',
       newTopicTitle: '',
@@ -242,6 +250,7 @@ export default {
         // Feed straight into the same pipeline typed text uses — voice is
         // just an alternate input method, not a separate flow.
         this.text = transcribed
+        this.lastInputSource = 'voice'
         await this.onNext()
       } catch (e) {
         console.error('ASR failed:', e.message)
@@ -285,7 +294,7 @@ export default {
       try {
         const result = await checkTopicFit(this.text.trim(), { title: topic.title }, otherTopics)
         if (result.fits) {
-          this.saveTo(topic.id)
+          this.saveTo(topic.id, { viaFastPath: true })
           return
         }
         this.suggestion = { topicId: result.topicId, suggestedTitle: result.suggestedTitle, isNewTopic: result.isNewTopic }
@@ -299,7 +308,7 @@ export default {
         // the save on it. We're not faking a "fits" verdict, we're just
         // skipping the extra check and trusting the user's own selection.
         console.warn('Topic fit check skipped, saving directly:', e.message)
-        this.saveTo(topic.id)
+        this.saveTo(topic.id, { viaFastPath: true })
       }
     },
     // Slow path: no topic selected yet (e.g. very first fragment ever) —
@@ -328,7 +337,8 @@ export default {
     quickAcceptSuggestion() {
       if (this.suggestion.isNewTopic) {
         const topic = createTopic(this.suggestion.suggestedTitle)
-        this.saveTo(topic.id)
+        trackTopicCreated()
+        this.saveTo(topic.id, { isNewTopic: true })
       } else {
         this.saveTo(this.suggestion.topicId)
       }
@@ -339,14 +349,25 @@ export default {
     saveToNew() {
       if (!this.newTopicTitle.trim()) return
       const topic = createTopic(this.newTopicTitle.trim())
-      this.saveTo(topic.id)
+      trackTopicCreated()
+      this.saveTo(topic.id, { isNewTopic: true })
     },
-    saveTo(topicId) {
+    saveTo(topicId, { isNewTopic = false, viaFastPath = false } = {}) {
       const fragmentText = this.text.trim()
       const fragment = addFragment(topicId, { text: fragmentText, source: 'text' })
       setSelectedTopicId(topicId)
       this.selectedTopicId = topicId
       this.topics = getTopics()
+      const updatedTopic = this.topics.find(t => t.id === topicId)
+      const fragmentCount = updatedTopic ? updatedTopic.fragments.length : null
+      const topicAgeHours = updatedTopic
+        ? Math.floor((Date.now() - new Date(updatedTopic.createdAt).getTime()) / 3600000)
+        : null
+      trackFragmentSaved({ isNewTopic, viaFastPath, source: this.lastInputSource, topicId, fragmentCount, topicAgeHours })
+      this.lastInputSource = 'text'
+      if (fragmentCount === 3) {
+        trackTopicReached3Fragments()
+      }
       this.refreshSummaryBestEffort(topicId)
       if (fragment) this.maybeAnswerBestEffort(topicId, fragment.id, fragmentText)
       uni.showToast({ title: '已保存', icon: 'success' })
@@ -374,6 +395,7 @@ export default {
         if (!topic) return
         const summary = await summarizeTopic(topic)
         console.log('[summary] updated:', summary)
+        trackSummaryGenerated()
         updateTopicSummary(topicId, summary)
         this.topics = getTopics()
         this.$emit('changed')
@@ -395,6 +417,7 @@ export default {
           return
         }
         console.log('[answer] AI answered:', fragmentText, '->', result.answer)
+        trackAIAnswerGiven()
         setFragmentAnswer(topicId, fragmentId, result.answer)
         this.topics = getTopics()
         this.$emit('changed')
