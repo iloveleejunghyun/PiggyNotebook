@@ -17,7 +17,9 @@
             "autoclose" : true,
             "delay" : 0
         },
-        "modules" : {},
+        "modules" : {
+            "Record" : {}
+        },
         "distribute" : {
             "android" : {
                 "permissions" : [

@@ -1,5 +1,13 @@
 // Singleton wrapper around uni.getRecorderManager().
 //
+// REQUIRES manifest.json's app-plus.modules to include "Record": {} — without
+// it, cloud-packaged Android release builds silently fail to ever fire
+// onStart/onError (no exception, no callback, just a permanently-stuck
+// "starting" state). Debug/run-to-device mode worked fine without it, which
+// is what made this so confusing to track down — the module requirement
+// only bites in a real packaged build. If voice input mysteriously breaks
+// again in a packaged Android build only, check this first.
+//
 // Why this file exists: uni.getRecorderManager() returns a device-wide
 // singleton (there's only one microphone). Its .onStart/.onStop/.onError
 // are ADDITIVE listener registrations, not property setters — calling them
