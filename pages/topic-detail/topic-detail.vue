@@ -57,6 +57,13 @@ export default {
       return this.topic ? [...this.topic.fragments].reverse() : []
     }
   },
+  watch: {
+    // Fires regardless of which method (re)loaded the topic, so the nav
+    // bar title stays in sync without repeating this call in three places.
+    topic(newTopic) {
+      if (newTopic) uni.setNavigationBarTitle({ title: newTopic.title })
+    }
+  },
   onLoad(query) {
     this.topicId = query.id
     // viewing a topic makes it the active one app-wide
