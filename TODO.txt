@@ -1,11 +1,15 @@
-*Track user actions.
-*Use pugongying to release test version.
-*Change app name and icon.
+Bugs:
+Users can't choose their own topic and the dialog is not well organized.
+	Verify it on Android.
+
+The Android user will be misleaded by ad on Pugongying.
+
+Features:
+Publish iOS.
+	Wait for review for TestFlight.
 *Add QRCode for testing users.
 
-*Presssed voice input and then show gray "连接中...",No change.
-	speak on topic page, then go to home and speak, which will occur.
-	Is there a stable way of developing button events & state changes.
+
 *Delete the fragment.
 
 *temparature设置为0以便于调试。在我们这个应用场景下应该不需要变化吧？
@@ -20,6 +24,11 @@
 *英语学习的总结不好。应该是一个用户问过的单词/句子列表，然后附带解释。
 
 Done:
+*Track user actions.
+*Use pugongying to release test version.
+	Have to go iOS app release / external testing. Up to 1 week waiting time.
+*Change app name and icon.
+
 *输入Sun，在已经有“英语学习”的情况下，居然还推荐创建了“日常词汇记录”主题。
 	在非英语的环境下，如果用户输入的是英语单词、短语、句子，即使用户没有明确提问，也应当假设用户是想要了解该英语的意思，并且归类到英语学习主题。
 
@@ -42,3 +51,8 @@ Done:
 	"在英语学习方法主题下，探讨了背英语单词的方式，指出xxx不一定好"。这是废话。总结应该就是用户的观点用bullets的形式呈现出来然后观点可能需要分类整理,有的放在一起。
 	还有就是用户问单词意思等，应该把AI翻译的意思也总结下来。比如说总结区域有个单词表，里面记录了所有用户询问的单词、句子意思。
 *Wait for several seconds after pressing "Send" while there's no change at all. Feel like it's stuck there.
+
+*Presssed voice input and then show gray "连接中...",No change.
+	speak on topic page, then go to home and speak, which will occur.
+	Is there a stable way of developing button events & state changes.
+	

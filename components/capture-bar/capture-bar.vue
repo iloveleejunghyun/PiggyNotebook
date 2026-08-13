@@ -37,44 +37,48 @@
       </view>
     </view>
 
-    <!-- review overlay — AI quick-accept (if any) + pick existing + create new -->
+    <!-- review overlay — one unified list: pick an existing topic (AI's pick
+         and the current topic clearly badged) or create a new one, then a
+         single confirm button. Nothing saves until you tap 保存. -->
     <view v-if="stage === 'review'" class="overlay" @click.self="closeReview">
       <view class="review-sheet">
         <text v-if="manualNotice" class="notice-text">{{ manualNotice }}</text>
 
-        <view v-if="mismatchTopicId" class="keep-current-card" @click="keepCurrentTopic">
-          <text>仍然保存到当前主题「{{ currentTopicTitleAtMismatch }}」</text>
+        <text class="section-label">选择主题</text>
+        <view v-if="sortedTopicsForReview.length === 0" class="empty-hint">
+          <text>还没有主题，在下面新建一个吧</text>
         </view>
-
-        <view v-if="suggestion" class="suggested-topic-card" @click="quickAcceptSuggestion">
-          <text class="confirm-label">{{ suggestion.isNewTopic ? 'AI 建议新建主题（点击使用）' : 'AI 建议归入（点击使用）' }}</text>
-          <text class="suggested-title">{{ suggestion.suggestedTitle }}</text>
-        </view>
-
-        <text class="section-label">选择已有主题</text>
-        <view v-if="pickableTopics.length === 0" class="empty-hint">
-          <text>还没有其他主题</text>
-        </view>
-        <view v-else class="topic-pick-list">
+        <view v-else class="topic-option-list">
           <view
-            v-for="t in pickableTopics"
+            v-for="t in sortedTopicsForReview"
             :key="t.id"
-            class="topic-pick-item"
-            @click="saveTo(t.id)"
+            class="topic-option-item"
+            :class="{ selected: selectedOption.type === 'existing' && selectedOption.topicId === t.id }"
+            @click="selectExistingOption(t.id)"
           >
-            <text>{{ t.title }}</text>
+            <text class="option-title">{{ t.title }}</text>
+            <text v-if="isAiSuggested(t.id)" class="option-badge ai-badge">AI 推荐</text>
+            <text v-else-if="t.id === mismatchTopicId" class="option-badge current-badge">当前主题</text>
           </view>
         </view>
 
         <text class="section-label new-topic-label">或新建主题</text>
-        <input
-          v-model="newTopicTitle"
-          class="new-topic-input"
-          placeholder="新主题名称"
-          maxlength="40"
-        />
-        <view class="primary-btn" :class="{ disabled: !newTopicTitle.trim() }" @click="saveToNew">
-          <text>新建并保存</text>
+        <view
+          class="topic-option-item new-topic-option"
+          :class="{ selected: selectedOption.type === 'new' }"
+        >
+          <input
+            v-model="newTopicTitle"
+            class="new-topic-input"
+            placeholder="新主题名称"
+            maxlength="40"
+            @focus="selectNewOption"
+          />
+          <text v-if="suggestion && suggestion.isNewTopic" class="option-badge ai-badge">AI 推荐</text>
+        </view>
+
+        <view class="primary-btn" :class="{ disabled: !canConfirm }" @click="confirmSelection">
+          <text>保存</text>
         </view>
         <view class="cancel-btn" @click="closeReview">
           <text>取消</text>
@@ -130,7 +134,10 @@ export default {
       // set only when the review sheet was triggered by a selected-topic
       // mismatch (as opposed to the "no topic selected yet" full-suggest path)
       mismatchTopicId: null,
-      currentTopicTitleAtMismatch: ''
+      currentTopicTitleAtMismatch: '',
+      // single source of truth for what the review sheet will save if you
+      // hit 保存 right now — { type: 'existing', topicId } | { type: 'new' } | { type: null }
+      selectedOption: { type: null, topicId: null }
     }
   },
   computed: {
@@ -143,13 +150,22 @@ export default {
       if (this.recordingState === 'transcribing') return '识别中…'
       return '按住说话'
     },
-    pickableTopics() {
-      const excludeIds = new Set()
-      if (this.suggestion && !this.suggestion.isNewTopic && this.suggestion.topicId) {
-        excludeIds.add(this.suggestion.topicId)
-      }
-      if (this.mismatchTopicId) excludeIds.add(this.mismatchTopicId)
-      return this.topics.filter(t => !excludeIds.has(t.id))
+    // One unified list — no more separate "AI suggestion card" vs "other
+    // topics" split. The AI-suggested (or currently-mismatched) topic just
+    // gets sorted to the top and badged, same list either way.
+    sortedTopicsForReview() {
+      const priorityId = (this.suggestion && !this.suggestion.isNewTopic)
+        ? this.suggestion.topicId
+        : this.mismatchTopicId
+      if (!priorityId) return this.topics
+      const priority = this.topics.filter(t => t.id === priorityId)
+      const rest = this.topics.filter(t => t.id !== priorityId)
+      return [...priority, ...rest]
+    },
+    canConfirm() {
+      if (this.selectedOption.type === 'existing') return !!this.selectedOption.topicId
+      if (this.selectedOption.type === 'new') return !!this.newTopicTitle.trim()
+      return false
     }
   },
   mounted() {
@@ -310,6 +326,9 @@ export default {
         this.newTopicTitle = result.isNewTopic ? result.suggestedTitle : ''
         this.mismatchTopicId = topic.id
         this.currentTopicTitleAtMismatch = topic.title
+        // Default to staying on the current topic — AI flagged a possible
+        // mismatch, it's not necessarily right, don't force a switch.
+        this.selectedOption = { type: 'existing', topicId: topic.id }
         this.manualNotice = `这条内容好像跟当前主题不太一样，要切换吗？`
         this.stage = 'review'
       } catch (e) {
@@ -331,6 +350,9 @@ export default {
         this.suggestion = result
         this.newTopicTitle = result.isNewTopic ? result.suggestedTitle : ''
         this.manualNotice = ''
+        this.selectedOption = result.isNewTopic
+          ? { type: 'new', topicId: null }
+          : { type: 'existing', topicId: result.topicId }
       } catch (e) {
         console.error('suggestTopic failed:', e.message)
         this.suggestion = null
@@ -338,28 +360,33 @@ export default {
         this.manualNotice = e instanceof AIServiceUnavailableError
           ? 'AI 建议服务暂不可用，请手动选择或新建主题'
           : '出错了，请手动选择或新建主题'
+        // AI failed entirely — don't pre-select anything, force a real choice
+        this.selectedOption = { type: null, topicId: null }
       } finally {
         this.mismatchTopicId = null
         this.stage = 'review'
       }
     },
-    quickAcceptSuggestion() {
-      if (this.suggestion.isNewTopic) {
-        const topic = createTopic(this.suggestion.suggestedTitle)
+    isAiSuggested(topicId) {
+      return !!(this.suggestion && !this.suggestion.isNewTopic && this.suggestion.topicId === topicId)
+    },
+    selectExistingOption(topicId) {
+      this.selectedOption = { type: 'existing', topicId }
+    },
+    selectNewOption() {
+      this.selectedOption = { type: 'new', topicId: null }
+    },
+    // Single confirm action for whatever's currently selected — nothing in
+    // the review sheet saves on its own anymore, only this does.
+    confirmSelection() {
+      if (!this.canConfirm) return
+      if (this.selectedOption.type === 'existing') {
+        this.saveTo(this.selectedOption.topicId)
+      } else if (this.selectedOption.type === 'new') {
+        const topic = createTopic(this.newTopicTitle.trim())
         trackTopicCreated()
         this.saveTo(topic.id, { isNewTopic: true })
-      } else {
-        this.saveTo(this.suggestion.topicId)
       }
-    },
-    keepCurrentTopic() {
-      this.saveTo(this.mismatchTopicId)
-    },
-    saveToNew() {
-      if (!this.newTopicTitle.trim()) return
-      const topic = createTopic(this.newTopicTitle.trim())
-      trackTopicCreated()
-      this.saveTo(topic.id, { isNewTopic: true })
     },
     saveTo(topicId, { isNewTopic = false, viaFastPath = false } = {}) {
       const fragmentText = this.text.trim()
@@ -395,6 +422,7 @@ export default {
       this.newTopicTitle = ''
       this.mismatchTopicId = null
       this.currentTopicTitleAtMismatch = ''
+      this.selectedOption = { type: null, topicId: null }
     },
     async refreshSummaryBestEffort(topicId) {
       // Fire-and-forget: fragment is already saved regardless of whether
@@ -544,34 +572,6 @@ export default {
   max-height: 80vh;
   overflow-y: auto;
 }
-.confirm-label {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 12rpx;
-}
-.keep-current-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
-  text-align: center;
-  font-size: 26rpx;
-  color: #333;
-}
-.suggested-topic-card {
-  background: #fff;
-  border: 2rpx solid #F97316;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 32rpx;
-  text-align: center;
-}
-.suggested-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #222;
-}
 .notice-text {
   display: block;
   font-size: 24rpx;
@@ -585,33 +585,60 @@ export default {
   margin-bottom: 12rpx;
 }
 .new-topic-label {
-  margin-top: 32rpx;
+  margin-top: 24rpx;
 }
 .empty-hint {
   color: #bbb;
   font-size: 26rpx;
   margin-bottom: 20rpx;
 }
-.topic-pick-list {
+.topic-option-list {
   display: flex;
   flex-direction: column;
   gap: 12rpx;
   margin-bottom: 12rpx;
 }
-.topic-pick-item {
+.topic-option-item {
   background: #fff;
+  border: 2rpx solid transparent;
   border-radius: 12rpx;
   padding: 20rpx;
   font-size: 28rpx;
   color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.topic-option-item.selected {
+  border-color: #F97316;
+  background: #FFF7ED;
+}
+.option-title {
+  flex: 1;
+}
+.option-badge {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+.option-badge.ai-badge {
+  color: #fff;
+  background: #F97316;
+}
+.option-badge.current-badge {
+  color: #666;
+  background: #eee;
+}
+.new-topic-option {
+  margin-top: 12rpx;
+  padding: 12rpx 20rpx;
 }
 .new-topic-input {
-  background: #fff;
-  border-radius: 12rpx;
-  padding: 20rpx;
+  flex: 1;
   font-size: 28rpx;
-  margin-bottom: 20rpx;
-  box-sizing: border-box;
+  height: 56rpx;
 }
 .primary-btn {
   text-align: center;
