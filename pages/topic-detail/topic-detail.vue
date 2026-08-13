@@ -26,6 +26,10 @@
             <text class="fragment-time">{{ formatTime(f.createdAt) }} · {{ sourceLabel(f.source) }}</text>
           </view>
         </view>
+
+        <view class="delete-btn" @click="confirmDelete">
+          <text>删除主题</text>
+        </view>
       </view>
     </view>
 
@@ -36,7 +40,7 @@
 </template>
 
 <script>
-import { getTopicById, updateTopicSummary, setSelectedTopicId } from '@/utils/storage.js'
+import { getTopicById, updateTopicSummary, setSelectedTopicId, deleteTopic } from '@/utils/storage.js'
 import { summarizeTopic } from '@/services/ai.js'
 
 export default {
@@ -94,6 +98,26 @@ export default {
       } finally {
         this.refreshing = false
       }
+    },
+    confirmDelete() {
+      if (!this.topic) return
+      // Irreversible — no undo, so require an explicit confirm rather than
+      // a single tap. Mainly a recovery tool for AI mis-categorization
+      // (e.g. a catch-all topic accidentally hoovering up unrelated
+      // fragments), not something meant to be reached for casually.
+      uni.showModal({
+        title: '删除主题',
+        content: `确定要删除「${this.topic.title}」吗？其中的 ${this.topic.fragments.length} 条碎片记录也会一并删除，且无法恢复。`,
+        confirmText: '删除',
+        confirmColor: '#DD524D',
+        success: res => {
+          if (res.confirm) {
+            deleteTopic(this.topicId)
+            uni.showToast({ title: '已删除', icon: 'success' })
+            setTimeout(() => uni.navigateBack(), 400)
+          }
+        }
+      })
     },
     formatTime(iso) {
       if (!iso) return ''
@@ -204,5 +228,12 @@ export default {
   display: block;
   font-size: 22rpx;
   color: #bbb;
+}
+.delete-btn {
+  text-align: center;
+  padding: 24rpx;
+  margin-top: 40rpx;
+  color: #bbb;
+  font-size: 26rpx;
 }
 </style>

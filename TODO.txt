@@ -1,6 +1,18 @@
 Bugs:
+Type topic name will trigger Incremental Compiling, and the app will restart in debug mode.
+	08:42:35.103 Incremental Compiling...
+	08:42:35.295 Project PiggyNotebook compiled successfully.
+	08:42:35.295 Syncing program files to device...
+	08:42:36.326 Program files synced successfully
+	08:42:36.837 PiggyNotebook launched at App.vue:4
+	08:42:36.844 App Show at App.vue:7
 Users can't choose their own topic and the dialog is not well organized.
 	Verify it on Android.
+Delete topic or restrict topic?
+	There's situation that AI auto created general topic, like "未分类主题". When a user said sth, it
+	would always be recommended put into that topic, instead of the expected, narrow topic.
+	
+Show the topic name rather than "主题详情" on top of topic page.
 
 The Android user will be misleaded by ad on Pugongying.
 
@@ -11,6 +23,7 @@ Publish iOS.
 
 
 *Delete the fragment.
+*Move the fragment.
 
 *temparature设置为0以便于调试。在我们这个应用场景下应该不需要变化吧？
 

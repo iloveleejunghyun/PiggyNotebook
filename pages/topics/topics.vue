@@ -13,6 +13,7 @@
           class="card"
           :class="{ selected: topic.id === selectedTopicId }"
           @click="openTopic(topic.id)"
+          @longpress="onTopicLongPress(topic)"
         >
           <view class="card-header">
             <view class="card-title-row">
@@ -32,7 +33,7 @@
 </template>
 
 <script>
-import { getTopics, getSelectedTopicId } from '@/utils/storage.js'
+import { getTopics, getSelectedTopicId, deleteTopic } from '@/utils/storage.js'
 
 export default {
   data() {
@@ -63,6 +64,33 @@ export default {
     },
     openTopic(topicId) {
       uni.navigateTo({ url: `/pages/topic-detail/topic-detail?id=${topicId}` })
+    },
+    onTopicLongPress(topic) {
+      uni.showActionSheet({
+        itemList: ['删除主题'],
+        itemColor: '#DD524D',
+        success: res => {
+          if (res.tapIndex === 0) this.confirmDeleteTopic(topic)
+        }
+      })
+    },
+    confirmDeleteTopic(topic) {
+      // Irreversible — no undo, so require an explicit confirm rather than
+      // acting straight off the long-press + action sheet tap.
+      uni.showModal({
+        title: '删除主题',
+        content: `确定要删除「${topic.title}」吗？其中的 ${topic.fragments.length} 条碎片记录也会一并删除，且无法恢复。`,
+        confirmText: '删除',
+        confirmColor: '#DD524D',
+        success: res => {
+          if (res.confirm) {
+            deleteTopic(topic.id)
+            this.refresh()
+            if (this.$refs.captureBar) this.$refs.captureBar.refresh()
+            uni.showToast({ title: '已删除', icon: 'success' })
+          }
+        }
+      })
     },
     formatTime(iso) {
       if (!iso) return ''
