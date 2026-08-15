@@ -2,8 +2,8 @@
     "name" : "PiggyNotebook",
     "appid" : "__UNI__158D092",
     "description" : "Capture fragmented thoughts by voice/text; auto-groups them by topic and keeps a running summary per topic.",
-    "versionName" : "0.1.0",
-    "versionCode" : "1",
+    "versionName" : "0.2.1",
+    "versionCode" : 3,
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
@@ -35,9 +35,7 @@
                     "NSMicrophoneUsageDescription" : "用于录音输入碎片想法"
                 },
                 "CFBundleDisplayName" : "PiggyNotebook",
-                "CFBundleName" : "PiggyNotebook",
-                "CFBundleVersion" : "0.1.0",
-                "CFBundleShortVersionString" : "0.1.0"
+                "CFBundleName" : "PiggyNotebook"
             },
             "sdkConfigs" : {},
             "orientation" : [ "portrait-primary" ],
