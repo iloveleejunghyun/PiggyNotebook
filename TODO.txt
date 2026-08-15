@@ -1,22 +1,13 @@
 Bugs:
-Type topic name will trigger Incremental Compiling, and the app will restart in debug mode.
-	08:42:35.103 Incremental Compiling...
-	08:42:35.295 Project PiggyNotebook compiled successfully.
-	08:42:35.295 Syncing program files to device...
-	08:42:36.326 Program files synced successfully
-	08:42:36.837 PiggyNotebook launched at App.vue:4
-	08:42:36.844 App Show at App.vue:7
-Users can't choose their own topic and the dialog is not well organized.
-	Verify it on Android.
-Delete topic or restrict topic?
-	There's situation that AI auto created general topic, like "未分类主题". When a user said sth, it
-	would always be recommended put into that topic, instead of the expected, narrow topic.
-	
-Show the topic name rather than "主题详情" on top of topic page.
-
+Change capture-bar to use voice recording first.
 The Android user will be misleaded by ad on Pugongying.
+Speach time limit to avoid truncate speech.
+Default to AI recomended topic when selecting a topic
+AI remind user twice to switch topic, if user doesn't agree, when we shouldn't switch for this topic until user manually switch it.
+If the user asks for creating a new topic, then we should follow and create it.
 
 Features:
+Should we do a landing page for ios / android?
 Publish iOS.
 	Wait for review for TestFlight.
 *Add QRCode for testing users.
@@ -37,6 +28,14 @@ Publish iOS.
 *英语学习的总结不好。应该是一个用户问过的单词/句子列表，然后附带解释。
 
 Done:
+*Show the topic name rather than "主题详情" on top of topic page.
+
+*Delete topic or restrict topic?
+	There's situation that AI auto created general topic, like "未分类主题". When a user said sth, it
+	would always be recommended put into that topic, instead of the expected, narrow topic.
+
+*Users can't choose their own topic and the dialog is not well organized.
+
 *Track user actions.
 *Use pugongying to release test version.
 	Have to go iOS app release / external testing. Up to 1 week waiting time.
