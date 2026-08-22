@@ -5,6 +5,7 @@ Speach time limit to avoid truncate speech.
 Default to AI recomended topic when selecting a topic
 AI remind user twice to switch topic, if user doesn't agree, when we shouldn't switch for this topic until user manually switch it.
 If the user asks for creating a new topic, then we should follow and create it.
+Async of AI reply is ok for ios but not ok for Android.
 
 Features:
 Should we do a landing page for ios / android?
