@@ -164,17 +164,16 @@
 
   // Click tracking via a deliberately-nonexistent path — OSS logs every
   // request including 404s (visible in 文件访问统计 per filename), so this
-  // needs no backend at all. sendBeacon (not fetch) because the browser is
-  // about to navigate away the instant this fires — fetch has no guarantee
-  // of completing through a navigation, sendBeacon is built for exactly
-  // this "log this right before unload" case.
+  // needs no backend at all.
+  //
+  // Classic <img> tracking-pixel pattern, not sendBeacon/fetch — confirmed
+  // via real network tab testing (2026-08-22) that OSS's static website
+  // hosting rejects POST with 405, and sendBeacon only ever sends POST.
+  // <img> only ever does GET, which OSS's static hosting actually serves.
   function trackClick(platform) {
     var url = "/events/click-" + platform + ".gif";
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(url);
-    } else {
-      fetch(url, { mode: "no-cors" }).catch(function () {});
-    }
+    var img = new Image();
+    img.src = url;
   }
 
   function btn(href, label, opts) {
