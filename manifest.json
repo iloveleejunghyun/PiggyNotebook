@@ -35,7 +35,12 @@
                     "NSMicrophoneUsageDescription" : "用于录音输入碎片想法"
                 },
                 "CFBundleDisplayName" : "PiggyNotebook",
-                "CFBundleName" : "PiggyNotebook"
+                "CFBundleName" : "PiggyNotebook",
+                "plistPreferences" : {
+                    "dict" : {
+                        "ITSAppUsesNonExemptEncryption" : false
+                    }
+                }
             },
             "sdkConfigs" : {},
             "orientation" : [ "portrait-primary" ],
