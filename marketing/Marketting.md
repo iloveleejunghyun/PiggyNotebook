@@ -32,4 +32,7 @@ $40 spend → 10,428 impressions → 2,437 destination clicks → almost 0 downl
 Internal testing might not be good for paied aquisition cause the ligitmate issue and conversion process is too long (complex download)
 
 #Try publishing in App Store / Google Play
+Waiting for review (4 days)
+Google play -> Closed Testing (12 testers for 14 days)
 
+Try product hunt!
