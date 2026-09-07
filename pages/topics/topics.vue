@@ -29,6 +29,7 @@
     </view>
 
     <capture-bar ref="captureBar" @saved="onSaved" @changed="onCaptureChanged" />
+    <ai-consent-gate />
   </view>
 </template>
 

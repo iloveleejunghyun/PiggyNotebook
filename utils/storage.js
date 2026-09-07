@@ -5,6 +5,7 @@
 
 const TOPICS_KEY = 'pn_topics'
 const SELECTED_TOPIC_KEY = 'pn_selected_topic_id'
+const AI_CONSENT_KEY = 'pn_ai_consent_given'
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -132,4 +133,21 @@ export function setSelectedTopicId(topicId) {
   } else {
     uni.removeStorageSync(SELECTED_TOPIC_KEY)
   }
+}
+
+/**
+ * Whether the user has explicitly agreed to send fragment text/voice
+ * recordings to the third-party AI services (百度千帆/文心一言, 火山引擎/豆包
+ * ASR) that power classification, summarization, and transcription.
+ * Required before any capture/AI flow runs — per App Store Guidelines
+ * 5.1.1(i)/5.1.2(i), disclosing this in the privacy policy alone isn't
+ * sufficient; the app must ask first.
+ * @returns {boolean}
+ */
+export function getAIConsent() {
+  return uni.getStorageSync(AI_CONSENT_KEY) === true
+}
+
+export function setAIConsent(agreed) {
+  uni.setStorageSync(AI_CONSENT_KEY, agreed === true)
 }

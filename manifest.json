@@ -50,7 +50,8 @@
                     "dict" : {
                         "ITSAppUsesNonExemptEncryption" : false
                     }
-                }
+                },
+                "idfa" : false
             },
             "sdkConfigs" : {},
             "orientation" : [ "portrait-primary" ],

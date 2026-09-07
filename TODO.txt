@@ -1,4 +1,9 @@
 Bugs:
+Apple Store review rejected:
+The app appears to share the user’s personal data with a third-party AI service but the app does not clearly explain what data is sent, identify who the data is sent to, and ask the user’s permission before sharing the data. 
+Uncheck "使用广告标识（IDFA）
+
+Allow AI to give response to more fragments. It should be more like discussing. We don't need long response like Doubao.
 Change capture-bar to use voice recording first.
 The Android user will be misleaded by ad on Pugongying.
 Speach time limit to avoid truncate speech.
