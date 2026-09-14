@@ -34,7 +34,13 @@ Internal testing might not be good for paied aquisition cause the ligitmate issu
 
 #Try publishing in App Store / Google Play
 Waiting for review (10 days) -> rejected
+9/10 approved to distrbute.
+Started Search Results AD on 9/12
+After running 2.5 days: 182 impressions → 4 taps → 1 install → $1.29 CPA
+Actions: 1.Double the bid from $0.48 to $0.96. 2.Add English version.
+
 Google play -> Closed Testing (12 testers for 14 days)
+passed Closed Testing on 9/12
 
 Try product hunt!
 

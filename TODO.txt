@@ -1,7 +1,8 @@
 Bugs:
 Apple Store review rejected:
-The app appears to share the user’s personal data with a third-party AI service but the app does not clearly explain what data is sent, identify who the data is sent to, and ask the user’s permission before sharing the data. 
-Uncheck "使用广告标识（IDFA）
+1.The app appears to share the user’s personal data with a third-party AI service but the app does not clearly explain what data is sent, identify who the data is sent to, and ask the user’s permission before sharing the data. 
+2.Uncheck "使用广告标识（IDFA）
+3.Don't use Android screenshot for iOS submission.
 
 Allow AI to give response to more fragments. It should be more like discussing. We don't need long response like Doubao.
 Change capture-bar to use voice recording first.
