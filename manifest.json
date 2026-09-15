@@ -42,7 +42,7 @@
             "ios" : {
                 "dSYMs" : false,
                 "privacyDescription" : {
-                    "NSMicrophoneUsageDescription" : "用于录音输入碎片想法"
+                    "NSMicrophoneUsageDescription" : "Used to record voice notes"
                 },
                 "CFBundleDisplayName" : "PiggyNotebook",
                 "CFBundleName" : "PiggyNotebook",

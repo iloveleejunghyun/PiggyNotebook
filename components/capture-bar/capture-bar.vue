@@ -2,14 +2,14 @@
   <view>
     <!-- always-docked capture bar — no extra tap needed to start recording/typing -->
     <view class="capture-bar">
-      <text v-if="selectedTopic" class="selected-label">当前主题：{{ selectedTopic.title }}</text>
-      <text v-else class="selected-label muted">未选择主题，AI 会帮你判断归到哪个主题</text>
+      <text v-if="selectedTopic" class="selected-label">Current topic: {{ selectedTopic.title }}</text>
+      <text v-else class="selected-label muted">No topic selected — AI will decide where this goes</text>
 
       <view v-if="inputMode === 'text'" class="text-mode-bar">
         <input
           v-model="text"
           class="bar-input"
-          placeholder="随手记下一个想法…"
+          placeholder="Jot down a thought…"
           confirm-type="send"
           @confirm="onNext"
         />
@@ -17,7 +17,7 @@
           <text>🎤</text>
         </view>
         <view class="bar-send-btn" :class="{ disabled: !text.trim() || loading }" @click="onNext">
-          <text>{{ loading ? '…' : '发送' }}</text>
+          <text>{{ loading ? '…' : 'Send' }}</text>
         </view>
       </view>
 
@@ -39,14 +39,14 @@
 
     <!-- review overlay — one unified list: pick an existing topic (AI's pick
          and the current topic clearly badged) or create a new one, then a
-         single confirm button. Nothing saves until you tap 保存. -->
+         single confirm button. Nothing saves until you tap Save. -->
     <view v-if="stage === 'review'" class="overlay" @click.self="closeReview">
       <view class="review-sheet">
         <text v-if="manualNotice" class="notice-text">{{ manualNotice }}</text>
 
-        <text class="section-label">选择主题</text>
+        <text class="section-label">Choose a Topic</text>
         <view v-if="sortedTopicsForReview.length === 0" class="empty-hint">
-          <text>还没有主题，在下面新建一个吧</text>
+          <text>No topics yet — create one below</text>
         </view>
         <view v-else class="topic-option-list">
           <view
@@ -57,12 +57,12 @@
             @click="selectExistingOption(t.id)"
           >
             <text class="option-title">{{ t.title }}</text>
-            <text v-if="isAiSuggested(t.id)" class="option-badge ai-badge">AI 推荐</text>
-            <text v-else-if="t.id === mismatchTopicId" class="option-badge current-badge">当前主题</text>
+            <text v-if="isAiSuggested(t.id)" class="option-badge ai-badge">AI Suggested</text>
+            <text v-else-if="t.id === mismatchTopicId" class="option-badge current-badge">Current</text>
           </view>
         </view>
 
-        <text class="section-label new-topic-label">或新建主题</text>
+        <text class="section-label new-topic-label">Or create a new topic</text>
         <view
           class="topic-option-item new-topic-option"
           :class="{ selected: selectedOption.type === 'new' }"
@@ -70,18 +70,18 @@
           <input
             v-model="newTopicTitle"
             class="new-topic-input"
-            placeholder="新主题名称"
+            placeholder="New topic name"
             maxlength="40"
             @focus="selectNewOption"
           />
-          <text v-if="suggestion && suggestion.isNewTopic" class="option-badge ai-badge">AI 推荐</text>
+          <text v-if="suggestion && suggestion.isNewTopic" class="option-badge ai-badge">AI Suggested</text>
         </view>
 
         <view class="primary-btn" :class="{ disabled: !canConfirm }" @click="confirmSelection">
-          <text>保存</text>
+          <text>Save</text>
         </view>
         <view class="cancel-btn" @click="closeReview">
-          <text>取消</text>
+          <text>Cancel</text>
         </view>
       </view>
     </view>
@@ -145,10 +145,10 @@ export default {
       return this.topics.find(t => t.id === this.selectedTopicId) || null
     },
     recordButtonLabel() {
-      if (this.recordingState === 'starting') return '连接中…'
-      if (this.recordingState === 'recording') return '松开 发送'
-      if (this.recordingState === 'transcribing') return '识别中…'
-      return '按住说话'
+      if (this.recordingState === 'starting') return 'Connecting…'
+      if (this.recordingState === 'recording') return 'Release to Send'
+      if (this.recordingState === 'transcribing') return 'Recognizing…'
+      return 'Hold to Talk'
     },
     // One unified list — no more separate "AI suggestion card" vs "other
     // topics" split. The AI-suggested (or currently-mismatched) topic just
@@ -223,7 +223,7 @@ export default {
       } catch (e) {
         console.error('Recorder start failed:', e)
         this.recordingState = 'idle'
-        uni.showToast({ title: '录音启动失败', icon: 'none' })
+        uni.showToast({ title: 'Failed to start recording', icon: 'none' })
       }
     },
     handleRecordStarted() {
@@ -262,14 +262,14 @@ export default {
       }
       if (res.duration < MIN_RECORDING_MS) {
         this.recordingState = 'idle'
-        uni.showToast({ title: '说话时间太短了', icon: 'none' })
+        uni.showToast({ title: 'Recording too short', icon: 'none' })
         return
       }
       this.recordingState = 'transcribing'
       try {
         const transcribed = await recognizeAudio(res.tempFilePath)
         if (!transcribed) {
-          uni.showToast({ title: '没听清，再说一次吧', icon: 'none' })
+          uni.showToast({ title: "Didn't catch that — try again", icon: 'none' })
           return
         }
         // Feed straight into the same pipeline typed text uses — voice is
@@ -279,7 +279,7 @@ export default {
         await this.onNext()
       } catch (e) {
         console.error('ASR failed:', e.message)
-        uni.showToast({ title: '语音识别暂不可用', icon: 'none' })
+        uni.showToast({ title: 'Voice recognition unavailable', icon: 'none' })
       } finally {
         this.recordingState = 'idle'
       }
@@ -287,7 +287,7 @@ export default {
     handleRecordError(err) {
       console.error('Recorder error:', err)
       this.recordingState = 'idle'
-      uni.showToast({ title: '录音失败，请检查麦克风权限', icon: 'none' })
+      uni.showToast({ title: 'Recording failed — check microphone permission', icon: 'none' })
     },
     async onNext() {
       if (!this.text.trim() || this.loading) return
@@ -296,7 +296,7 @@ export default {
       // (a small "…" on the send button) — dismiss it and show something
       // unmissable instead, so a multi-second AI call never looks frozen.
       uni.hideKeyboard()
-      uni.showLoading({ title: 'AI 思考中…', mask: true })
+      uni.showLoading({ title: 'AI thinking…', mask: true })
       try {
         if (this.selectedTopic) {
           await this.captureWithSelectedTopic()
@@ -329,7 +329,7 @@ export default {
         // Default to staying on the current topic — AI flagged a possible
         // mismatch, it's not necessarily right, don't force a switch.
         this.selectedOption = { type: 'existing', topicId: topic.id }
-        this.manualNotice = `这条内容好像跟当前主题不太一样，要切换吗？`
+        this.manualNotice = `This looks like it might belong to a different topic — switch?`
         this.stage = 'review'
       } catch (e) {
         // Non-critical background check — fail open rather than blocking
@@ -358,8 +358,8 @@ export default {
         this.suggestion = null
         this.newTopicTitle = ''
         this.manualNotice = e instanceof AIServiceUnavailableError
-          ? 'AI 建议服务暂不可用，请手动选择或新建主题'
-          : '出错了，请手动选择或新建主题'
+          ? 'AI suggestion service unavailable — please choose or create a topic manually'
+          : 'Something went wrong — please choose or create a topic manually'
         // AI failed entirely — don't pre-select anything, force a real choice
         this.selectedOption = { type: null, topicId: null }
       } finally {
@@ -406,7 +406,7 @@ export default {
       }
       this.refreshSummaryBestEffort(topicId)
       if (fragment) this.maybeAnswerBestEffort(topicId, fragment.id, fragmentText)
-      uni.showToast({ title: '已保存', icon: 'success' })
+      uni.showToast({ title: 'Saved', icon: 'success' })
       this.closeReview()
       // 'saved' fires once, right now, so the host page can jump to the
       // topic and show where the fragment landed. 'changed' fires again

@@ -2,25 +2,25 @@
   <view class="page">
     <view class="content-area">
       <view v-if="!topic" class="empty">
-        <text>主题不存在</text>
+        <text>Topic not found</text>
       </view>
 
       <view v-else>
         <view class="summary-card">
-          <text class="section-label">汇总</text>
-          <text class="summary-text">{{ topic.summary || '暂无汇总' }}</text>
+          <text class="section-label">Summary</text>
+          <text class="summary-text">{{ topic.summary || 'No summary yet' }}</text>
           <view class="refresh-btn" @click="refreshSummary" :class="{ disabled: refreshing }">
-            <text>{{ refreshing ? '生成中…' : '重新生成汇总' }}</text>
+            <text>{{ refreshing ? 'Generating…' : 'Regenerate Summary' }}</text>
           </view>
           <text v-if="summaryError" class="error-text">{{ summaryError }}</text>
         </view>
 
-        <text class="section-label fragments-label">碎片记录（{{ topic.fragments.length }}）</text>
+        <text class="section-label fragments-label">Notes ({{ topic.fragments.length }})</text>
         <view class="fragment-list">
           <view v-for="f in reversedFragments" :key="f.id" class="fragment-item">
             <text class="fragment-text">{{ f.text }}</text>
             <view v-if="f.aiAnswer" class="ai-answer-block">
-              <text class="ai-tag">🤖 AI 回复</text>
+              <text class="ai-tag">🤖 AI Reply</text>
               <text class="ai-answer-text">{{ f.aiAnswer }}</text>
             </view>
             <text class="fragment-time">{{ formatTime(f.createdAt) }} · {{ sourceLabel(f.source) }}</text>
@@ -28,7 +28,7 @@
         </view>
 
         <view class="delete-btn" @click="confirmDelete">
-          <text>删除主题</text>
+          <text>Delete Topic</text>
         </view>
       </view>
     </view>
@@ -100,7 +100,7 @@ export default {
         this.topic = updateTopicSummary(this.topicId, summary)
       } catch (e) {
         // Honest failure — no fake summary text, per project rule.
-        this.summaryError = 'AI汇总服务暂不可用，稍后再试'
+        this.summaryError = 'AI summary service unavailable right now — try again later'
         console.error(e)
       } finally {
         this.refreshing = false
@@ -113,14 +113,14 @@ export default {
       // (e.g. a catch-all topic accidentally hoovering up unrelated
       // fragments), not something meant to be reached for casually.
       uni.showModal({
-        title: '删除主题',
-        content: `确定要删除「${this.topic.title}」吗？其中的 ${this.topic.fragments.length} 条碎片记录也会一并删除，且无法恢复。`,
-        confirmText: '删除',
+        title: 'Delete Topic',
+        content: `Delete "${this.topic.title}"? This will also delete its ${this.topic.fragments.length} notes, and cannot be undone.`,
+        confirmText: 'Delete',
         confirmColor: '#DD524D',
         success: res => {
           if (res.confirm) {
             deleteTopic(this.topicId)
-            uni.showToast({ title: '已删除', icon: 'success' })
+            uni.showToast({ title: 'Deleted', icon: 'success' })
             setTimeout(() => uni.navigateBack(), 400)
           }
         }
@@ -133,9 +133,9 @@ export default {
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
     },
     sourceLabel(source) {
-      if (source === 'voice') return '语音'
+      if (source === 'voice') return 'Voice'
       if (source === 'ai') return 'AI'
-      return '文字'
+      return 'Text'
     }
   }
 }

@@ -144,7 +144,7 @@ export async function recognizeAudio(filePath) {
     if (NON_FATAL_EMPTY_CODES.includes(apiStatusCode)) {
       return ''
     }
-    const message = getHeader(res.header, 'x-api-message') || '识别失败'
+    const message = getHeader(res.header, 'x-api-message') || 'recognition failed'
     throw new ASRUnavailableError(`ASR API error ${apiStatusCode}: ${message}`)
   }
 

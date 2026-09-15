@@ -2,8 +2,8 @@
   <view class="page">
     <view class="list-area">
       <view v-if="topics.length === 0" class="empty">
-        <text class="empty-title">还没有主题</text>
-        <text class="empty-sub">在下面按住说话，或点键盘输入，记下第一个想法</text>
+        <text class="empty-title">No topics yet</text>
+        <text class="empty-sub">Hold to speak below, or tap the keyboard to type your first note</text>
       </view>
 
       <view v-else class="list">
@@ -18,11 +18,11 @@
           <view class="card-header">
             <view class="card-title-row">
               <text class="card-title">{{ topic.title }}</text>
-              <text v-if="topic.id === selectedTopicId" class="selected-badge">已选择</text>
+              <text v-if="topic.id === selectedTopicId" class="selected-badge">Selected</text>
             </view>
-            <text class="card-count">{{ topic.fragments.length }}条</text>
+            <text class="card-count">{{ topic.fragments.length }} notes</text>
           </view>
-          <text class="card-summary">{{ topic.summary || '暂无汇总' }}</text>
+          <text class="card-summary">{{ topic.summary || 'No summary yet' }}</text>
           <text class="card-time">{{ formatTime(topic.updatedAt) }}</text>
         </view>
       </view>
@@ -68,7 +68,7 @@ export default {
     },
     onTopicLongPress(topic) {
       uni.showActionSheet({
-        itemList: ['删除主题'],
+        itemList: ['Delete Topic'],
         itemColor: '#DD524D',
         success: res => {
           if (res.tapIndex === 0) this.confirmDeleteTopic(topic)
@@ -79,16 +79,16 @@ export default {
       // Irreversible — no undo, so require an explicit confirm rather than
       // acting straight off the long-press + action sheet tap.
       uni.showModal({
-        title: '删除主题',
-        content: `确定要删除「${topic.title}」吗？其中的 ${topic.fragments.length} 条碎片记录也会一并删除，且无法恢复。`,
-        confirmText: '删除',
+        title: 'Delete Topic',
+        content: `Delete "${topic.title}"? This will also delete its ${topic.fragments.length} notes, and cannot be undone.`,
+        confirmText: 'Delete',
         confirmColor: '#DD524D',
         success: res => {
           if (res.confirm) {
             deleteTopic(topic.id)
             this.refresh()
             if (this.$refs.captureBar) this.$refs.captureBar.refresh()
-            uni.showToast({ title: '已删除', icon: 'success' })
+            uni.showToast({ title: 'Deleted', icon: 'success' })
           }
         }
       })

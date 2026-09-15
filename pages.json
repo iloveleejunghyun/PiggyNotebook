@@ -9,7 +9,7 @@
     {
       "path": "pages/topic-detail/topic-detail",
       "style": {
-        "navigationBarTitleText": "主题详情"
+        "navigationBarTitleText": "Topic Detail"
       }
     }
   ],

@@ -1,34 +1,34 @@
 <template>
   <view v-if="visible" class="gate">
     <view class="card">
-      <text class="title">AI 处理说明</text>
+      <text class="title">How AI Processing Works</text>
       <text class="body">
-        PiggyNotebook 使用第三方 AI 服务处理你的记录内容，以提供自动分类、汇总和语音转文字功能：
+        PiggyNotebook uses third-party AI services to process what you record, powering automatic classification, summaries, and voice-to-text:
       </text>
       <view class="vendor-list">
         <view class="vendor-item">
-          <text class="vendor-name">百度智能云 千帆 / 文心一言</text>
-          <text class="vendor-desc">发送内容：你输入或转写后的文字碎片 — 用于自动归类到主题、生成主题汇总、回答你的问题</text>
+          <text class="vendor-name">Baidu Qianfan / ERNIE</text>
+          <text class="vendor-desc">Sent: your typed or transcribed text fragments — used to auto-classify into topics, generate topic summaries, and answer your questions</text>
         </view>
         <view class="vendor-item">
-          <text class="vendor-name">火山引擎（豆包）语音识别</text>
-          <text class="vendor-desc">发送内容：你的语音录音 — 用于将语音转换为文字</text>
+          <text class="vendor-name">Volcengine (Doubao) Speech Recognition</text>
+          <text class="vendor-desc">Sent: your voice recordings — used to convert speech to text</text>
         </view>
       </view>
       <text class="body">
-        这些内容会实时发送给对应服务商用于生成结果，我们自己不会长期留存副本。详见
-        <text class="link" @click="openPrivacyPolicy">隐私政策</text>。
+        This content is sent to the respective provider in real time to generate results; we don't keep our own long-term copy. See our
+        <text class="link" @click="openPrivacyPolicy">Privacy Policy</text> for details.
       </text>
       <text class="body small">
-        由于记录、语音转文字和自动整理是本应用的核心功能，需要同意后才能使用。
+        Since capturing notes, voice-to-text, and automatic organization are this app's core features, you need to agree before using it.
       </text>
 
       <view class="actions">
         <view class="btn secondary" @click="decline">
-          <text>不同意（退出）</text>
+          <text>Decline (Exit)</text>
         </view>
         <view class="btn primary" @click="agree">
-          <text>同意并继续</text>
+          <text>Agree &amp; Continue</text>
         </view>
       </view>
     </view>
@@ -59,11 +59,11 @@ export default {
       // nothing left the app can honestly do, so exit rather than leave a
       // half-functional app or (worse) silently proceeding without consent.
       uni.showModal({
-        title: '需要同意才能使用',
-        content: '不同意将无法使用本应用的核心功能，App 即将退出。',
+        title: 'Agreement Required',
+        content: 'Declining means you can\'t use this app\'s core features — the app will now exit.',
         showCancel: true,
-        cancelText: '返回',
-        confirmText: '退出',
+        cancelText: 'Back',
+        confirmText: 'Exit',
         success: res => {
           if (res.confirm && typeof plus !== 'undefined' && plus.runtime) {
             plus.runtime.quit()
