@@ -1,8 +1,7 @@
-Bugs:
-Apple Store review rejected:
-1.The app appears to share the user’s personal data with a third-party AI service but the app does not clearly explain what data is sent, identify who the data is sent to, and ask the user’s permission before sharing the data. 
-2.Uncheck "使用广告标识（IDFA）
-3.Don't use Android screenshot for iOS submission.
+
+Markdown bug in summary section.
+
+
 
 Allow AI to give response to more fragments. It should be more like discussing. We don't need long response like Doubao.
 Change capture-bar to use voice recording first.
@@ -75,3 +74,11 @@ Done:
 	speak on topic page, then go to home and speak, which will occur.
 	Is there a stable way of developing button events & state changes.
 	
+*Bugs:
+Apple Store review rejected:
+1.The app appears to share the user’s personal data with a third-party AI service but the app does not clearly explain what data is sent, identify who the data is sent to, and ask the user’s permission before sharing the data. 
+2.Uncheck "使用广告标识（IDFA）
+3.Don't use Android screenshot for iOS submission.
+
+*Update versionName and versionCode which didn't take effect.
+	Delete unpackage folder.

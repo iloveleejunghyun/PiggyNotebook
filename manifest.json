@@ -2,8 +2,8 @@
     "name" : "PiggyNotebook",
     "appid" : "__UNI__158D092",
     "description" : "Capture fragmented thoughts by voice/text; auto-groups them by topic and keeps a running summary per topic.",
-    "versionName" : "0.2.5",
-    "versionCode" : 7,
+    "versionName" : "0.2.6",
+    "versionCode" : 8,
     "transformPx" : false,
     "app-plus" : {
         "usingComponents" : true,
