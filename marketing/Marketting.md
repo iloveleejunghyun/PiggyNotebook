@@ -40,10 +40,15 @@ After running 2.5 days: 182 impressions → 4 taps → 1 install → $1.29 CPA
 Actions: 1.Double the bid from $0.48 to $0.96. 2.Add English version.
 
 332 impressions → 6 taps (1.8%) → 1 install (16.7% tap→install) on 16 Sep
+1024 impressions -> 14 taps -> 1 install. 7 day campagin in Malaysia finished.
+
+Try the same ad in U.S.
+
 
 
 Google play -> Closed Testing (12 testers for 14 days)
 passed Closed Testing on 9/12
+Asked for another 14 days of Closed Testing!
 
 Try product hunt!
 
