@@ -64,7 +64,7 @@ export function addFragment(topicId, fragment) {
     id: uid(),
     text: fragment.text,
     source: fragment.source || 'text',
-    aiAnswer: null, // filled in later by setFragmentAnswer, if the AI has something to add
+    aiAnswer: null, // filled in later by applyNoteResult, if the AI has something to add
     createdAt: nowISO()
   }
   topic.fragments.push(newFragment)
@@ -77,37 +77,35 @@ export function addFragment(topicId, fragment) {
 }
 
 /**
- * Attach a single-shot AI answer to an existing fragment (e.g. a definition
- * for a bare vocab word) so it renders as one Q&A card instead of two
- * separate fragments.
+ * Write the AI's result for a newly saved note in ONE storage write: the
+ * (optional) reply on that fragment plus the topic's fresh summary.
  * @param {string} topicId
  * @param {string} fragmentId
- * @param {string} answer
- * @returns {object|null} the updated fragment, or null if not found
+ * @param {{reply: string|null, summary: string}} result
+ * @returns {object|null} the updated topic, or null if the topic was deleted meanwhile
  */
-export function setFragmentAnswer(topicId, fragmentId, answer) {
+export function applyNoteResult(topicId, fragmentId, { reply, summary }) {
   const topics = getTopics()
   const topic = topics.find(t => t.id === topicId)
   if (!topic) return null
   const fragment = topic.fragments.find(f => f.id === fragmentId)
-  if (!fragment) return null
-  fragment.aiAnswer = answer
+  if (fragment && reply) fragment.aiAnswer = reply
+  topic.summary = summary
+  topic.summaryFailed = false
   topic.updatedAt = nowISO()
   saveTopics(topics)
-  return fragment
+  return topic
 }
 
 /**
- * Overwrite a topic's rolling summary (called after a successful AI summarize call).
- * @param {string} topicId
- * @param {string} summary
+ * Record that the last AI update for this topic failed, so the detail page can
+ * say so honestly instead of showing an out-of-date summary as if it were current.
  */
-export function updateTopicSummary(topicId, summary) {
+export function markSummaryFailed(topicId) {
   const topics = getTopics()
   const topic = topics.find(t => t.id === topicId)
   if (!topic) return null
-  topic.summary = summary
-  topic.updatedAt = nowISO()
+  topic.summaryFailed = true
   saveTopics(topics)
   return topic
 }

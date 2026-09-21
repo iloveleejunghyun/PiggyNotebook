@@ -230,81 +230,95 @@ Reply with only a JSON object with exactly these four keys:
   return result.value
 }
 
-/**
- * Single-shot, best-effort answer to a fragment that reads like a question,
- * a bare term needing context (e.g. a vocab word), or a request to explain
- * something. NOT a chat — one question, one answer, no follow-up thread.
- * Stays silent (needsAnswer: false) unless the AI is actually confident,
- * per the project's no-hallucination rule.
- * @param {string} text - the raw fragment text
- * @param {{title: string, summary: string}} topic - context for grounding the answer
- * @returns {Promise<{ needsAnswer: false } | { needsAnswer: true, answer: string }>}
- * @throws {AIServiceUnavailableError} when the service isn't configured or the call fails
- */
-export async function answerIfNeeded(text, topic) {
-  const prompt = `You are a notes assistant. The user just recorded a new fragment under the topic "${topic.title}". Determine whether this fragment is a question, a term/word lacking context (e.g. just a single foreign word), or a request for you to explain or act on something.
-
-Topic background (for reference, may be empty):
-${topic.summary || '(none yet)'}
-
-The user's new fragment:
-"""
-${text}
-"""
-
-Rules:
-1. If the fragment is simply a plain statement, thought, or plan (not a question or request for explanation), decide no answer is needed.
-2. Special case: if this fragment is a word/phrase/sentence in a different language than the rest of the user's notes — even without explicitly asking "what does this mean" — assume the user wants to know its meaning, and decide an answer is needed (give its meaning/translation).
-3. If the fragment is a question/term/request for explanation but you're not confident the answer is accurate, also decide no answer is needed — never fabricate or guess; when in doubt, stay silent.
-4. Only give an answer when the fragment clearly needs one and you're confident it's correct. Keep the answer concise, no more than 60 words.
-
-Output only a JSON object, nothing else:
-- No answer needed: {"needsAnswer": false}
-- Needed and answerable: {"needsAnswer": true, "answer": "the answer"}`
-
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0.1, 'answerIfNeeded')
-  const parsed = extractJSON(content)
-
-  if (typeof parsed.needsAnswer !== 'boolean') {
-    throw new AIServiceUnavailableError(`AI JSON response missing "needsAnswer" field: ${content}`)
+// Pull the two tagged blocks out of the reply. Tags instead of JSON: the
+// summary is long multi-line Markdown, which models often break when they have
+// to escape it inside a JSON string.
+function parseNoteReply(content) {
+  const block = tag => {
+    const m = content.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i'))
+    return m ? m[1].trim() : null
   }
-  if (!parsed.needsAnswer) return { needsAnswer: false }
-
-  if (typeof parsed.answer !== 'string' || !parsed.answer.trim()) {
-    throw new AIServiceUnavailableError(`AI said needsAnswer=true but gave no answer: ${content}`)
+  const reply = block('reply')
+  const summary = block('summary')
+  if (reply === null) return { ok: false, reason: 'missing <reply>...</reply> block' }
+  if (!summary) return { ok: false, reason: 'missing or empty <summary>...</summary> block' }
+  return {
+    ok: true,
+    value: { reply: /^none$/i.test(reply) || !reply ? null : reply, summary }
   }
-  return { needsAnswer: true, answer: parsed.answer.trim() }
 }
 
 /**
- * Ask the AI to regenerate a topic's rolling summary from all its fragments.
- * @param {{title: string, fragments: Array<{text: string, aiAnswer?: string}>}} topic
- * @returns {Promise<string>} the new summary text
- * @throws {AIServiceUnavailableError} when the service isn't configured or the call fails
+ * ONE call per saved note, replacing the old answerIfNeeded + summarizeTopic
+ * pair. Because the reply and the summary are written in the same pass, the
+ * summary (and its Glossary) always includes the reply to the new note, and
+ * there is nothing left to race.
+ *
+ * @param {{title: string, fragments: Array<{id: string, text: string, aiAnswer?: string|null}>}} topic
+ *   the topic AFTER the new note was saved (the new note is one of its fragments)
+ * @param {string} newFragmentId - which fragment is the new one
+ * @returns {Promise<{ reply: string|null, summary: string }>}
+ * @throws {AIServiceUnavailableError} when the service isn't configured, the call fails,
+ *   or the reply is still malformed after one retry
  */
-export async function summarizeTopic(topic) {
-  // Include each fragment's AI answer (if any) — otherwise the model has no
-  // way to compile a glossary/reference list of things it already explained.
-  const fragmentList = topic.fragments.map((f, i) => {
-    const base = `${i + 1}. ${f.text}`
-    return f.aiAnswer ? `${base} (AI explanation: ${f.aiAnswer})` : base
-  }).join('\n')
+export async function processNote(topic, newFragmentId) {
+  const newFragment = topic.fragments.find(f => f.id === newFragmentId)
+  if (!newFragment) throw new AIServiceUnavailableError('processNote: new fragment not found in topic')
 
-  const prompt = `You are a note-organizing assistant. Below are all the fragments the user has recorded over time under the topic "${topic.title}" — organize them into a useful summary to help the user quickly review.
+  const earlier = topic.fragments.filter(f => f.id !== newFragmentId)
+  const earlierList = earlier.length
+    ? earlier.map((f, i) => {
+        const base = `${i + 1}. ${f.text}`
+        return f.aiAnswer ? `${base} (AI explanation: ${f.aiAnswer})` : base
+      }).join('\n')
+    : '(none yet)'
 
-Summary format requirements:
-1. Present the user's actual views/thoughts as bullet points (each starting with "- " on its own line) — don't write hollow paraphrases like "discussed…" or "pointed out that… isn't necessarily good" — write out what the user's actual view or conclusion actually is.
-2. If multiple fragments belong to the same sub-topic, group them into one set of bullets together rather than listing overlapping content repeatedly; if there are clear categories, group them under short sub-headings written as "## Heading" on their own line. You may use **bold** for key terms and indented sub-bullets where they help; use no tables.
-3. If a fragment's information is incomplete (e.g. just a single word/term), you may supplement it with common-knowledge facts you're confident are correct, but never fabricate.
-4. If any fragment has an AI explanation attached (e.g. a word or phrase's meaning/translation), additionally compile a separate "Glossary" section at the end of the summary, one line per "term — meaning," so the user can look them up quickly; don't repeat these meanings in the main body.
+  const prompt = `You are a note-organizing assistant. The user keeps notes under the topic "${topic.title}". They just added a new note. Do two things:
 
-Keep the main body under 200 words (the glossary is separate, but keep it concise too). Output only the summary text directly, no prefix, explanation, or phrases like "here is the summary."
+TASK 1 — Reply to the new note (often not needed).
+- If the new note is a plain statement, thought or plan, no reply is needed.
+- If it is a question, a request to explain something, a bare word or short phrase with no context (assume they want to know what it means, even in English), or a word/phrase in a different language than the rest of the user's notes (assume they want its meaning or translation), give a concise reply of at most 60 words, in plain text with no Markdown symbols.
+- If you are not confident the reply is accurate, do not reply. Never guess or fabricate.
 
-Fragments:
-${fragmentList}`
+TASK 2 — Write the topic summary covering ALL notes (earlier ones plus the new one), including any AI explanations, and including your reply from Task 1 if you gave one.
+1. Present the user's actual views/thoughts as bullet points (each starting with "- " on its own line). Write out what the user's actual view or conclusion is; no hollow paraphrases like "discussed…" or "pointed out that…".
+2. Group notes about the same sub-topic into one set of bullets rather than repeating overlapping content. If there are clear categories, use short sub-headings written as "## Heading" on their own line. You may use **bold** for key terms and indented sub-bullets where they help; use no tables.
+3. Summarize only what the notes contain. If a note is just an instruction to the app (for example "create a new topic X") or has no content of its own, leave it out of the summary; if that leaves nothing to summarize, the summary is just "No content yet." If a note is incomplete (e.g. a single term), you may add common-knowledge facts you are confident are correct.
+4. Whenever a note has an AI explanation (including your Task 1 reply), the summary must contain that information, not merely say the user asked. For word/phrase meanings, add a separate "Glossary" section at the end, one line per "term — meaning", without repeating them in the main body. For an answered question, put the key answer in a bullet under the relevant sub-heading.
+Keep the main body under 200 words (the Glossary is separate but concise too).
 
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0.3, 'summarizeTopic')
-  return content.trim()
+Earlier notes:
+${earlierList}
+
+New note:
+"""
+${newFragment.text}
+"""
+
+Output exactly this format and nothing else:
+<reply>
+the reply to the new note, or the single word NONE if no reply is needed
+</reply>
+<summary>
+the full topic summary
+</summary>`
+
+  const messages = [{ role: 'user', content: prompt }]
+  let content = await chatCompletion(messages, 0.2, 'processNote')
+  let result = parseNoteReply(content)
+  if (!result.ok) {
+    messages.push({ role: 'assistant', content })
+    messages.push({
+      role: 'user',
+      content: `Your reply was invalid: ${result.reason}. Reply again using exactly the <reply>...</reply> and <summary>...</summary> format.`
+    })
+    content = await chatCompletion(messages, 0.2, 'processNote:retry')
+    result = parseNoteReply(content)
+  }
+  if (!result.ok) {
+    throw new AIServiceUnavailableError(`AI note reply was invalid: ${result.reason}`)
+  }
+  return result.value
 }
 
 export { AIServiceUnavailableError }

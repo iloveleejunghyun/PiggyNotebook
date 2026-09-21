@@ -95,8 +95,8 @@ import {
   setSelectedTopicId,
   createTopic,
   addFragment,
-  updateTopicSummary,
-  setFragmentAnswer
+  applyNoteResult,
+  markSummaryFailed
 } from '@/utils/storage.js'
 import {
   trackFragmentSaved,
@@ -105,7 +105,7 @@ import {
   trackAIAnswerGiven,
   trackTopicReached3Fragments
 } from '@/utils/analytics.js'
-import { chooseTopic, summarizeTopic, answerIfNeeded, AIServiceUnavailableError } from '@/services/ai.js'
+import { chooseTopic, processNote, AIServiceUnavailableError } from '@/services/ai.js'
 import { recognizeAudio } from '@/services/asr.js'
 import { setRecorderHandlers, startRecording, stopRecording } from '@/utils/recorder.js'
 
@@ -415,8 +415,7 @@ export default {
       if (fragmentCount === 3) {
         trackTopicReached3Fragments()
       }
-      this.refreshSummaryBestEffort(topicId)
-      if (fragment) this.maybeAnswerBestEffort(topicId, fragment.id, fragmentText)
+      if (fragment) this.processNoteBestEffort(topicId, fragment.id)
       uni.showToast({ title: 'Saved', icon: 'success' })
       this.closeReview()
       // 'saved' fires once, right now, so the host page can jump to the
@@ -435,42 +434,23 @@ export default {
       this.currentTopicTitleAtMismatch = ''
       this.selectedOption = { type: null, topicId: null }
     },
-    async refreshSummaryBestEffort(topicId) {
-      // Fire-and-forget: fragment is already saved regardless of whether
-      // the summary regenerates successfully. Never blocks the save flow.
+    async processNoteBestEffort(topicId, fragmentId) {
+      // Fire-and-forget: the note is already saved. One call returns the
+      // optional reply and the refreshed summary, written together.
       try {
         const topic = getTopics().find(t => t.id === topicId)
         if (!topic) return
-        const summary = await summarizeTopic(topic)
-        console.log('[summary] updated:', summary)
+        const result = await processNote(topic, fragmentId)
+        applyNoteResult(topicId, fragmentId, result)
         trackSummaryGenerated()
-        updateTopicSummary(topicId, summary)
+        if (result.reply) trackAIAnswerGiven()
         this.topics = getTopics()
         this.$emit('changed')
       } catch (e) {
-        console.warn('Summary refresh skipped:', e.message)
-      }
-    },
-    async maybeAnswerBestEffort(topicId, fragmentId, fragmentText) {
-      // Fire-and-forget, single-shot: no follow-up thread, no blocking the
-      // save. Silent no-op unless the AI is confident it should answer.
-      // Attaches to the original fragment (not a new one) so the question
-      // and answer render together as one Q&A card.
-      try {
-        const topic = getTopics().find(t => t.id === topicId)
-        if (!topic) return
-        const result = await answerIfNeeded(fragmentText, { title: topic.title, summary: topic.summary })
-        if (!result.needsAnswer) {
-          console.log('[answer] AI declined to answer:', fragmentText)
-          return
-        }
-        console.log('[answer] AI answered:', fragmentText, '->', result.answer)
-        trackAIAnswerGiven()
-        setFragmentAnswer(topicId, fragmentId, result.answer)
+        console.warn('AI note processing failed:', e.message)
+        markSummaryFailed(topicId)
         this.topics = getTopics()
         this.$emit('changed')
-      } catch (e) {
-        console.warn('AI answer skipped:', e.message)
       }
     }
   }

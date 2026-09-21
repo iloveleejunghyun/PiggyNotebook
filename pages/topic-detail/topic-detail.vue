@@ -10,10 +10,7 @@
           <text class="section-label">Summary</text>
           <rich-text v-if="topic.summary" class="summary-text" :nodes="summaryHtml" user-select></rich-text>
           <text v-else class="summary-text">No summary yet</text>
-          <view class="refresh-btn" @click="refreshSummary" :class="{ disabled: refreshing }">
-            <text>{{ refreshing ? 'Generating…' : 'Regenerate Summary' }}</text>
-          </view>
-          <text v-if="summaryError" class="error-text">{{ summaryError }}</text>
+          <text v-if="topic.summaryFailed" class="error-text">Summary couldn't update — it will refresh with your next note.</text>
         </view>
 
         <text class="section-label fragments-label">Notes ({{ topic.fragments.length }})</text>
@@ -41,17 +38,14 @@
 </template>
 
 <script>
-import { getTopicById, updateTopicSummary, setSelectedTopicId, deleteTopic } from '@/utils/storage.js'
-import { summarizeTopic } from '@/services/ai.js'
+import { getTopicById, setSelectedTopicId, deleteTopic } from '@/utils/storage.js'
 import { markdownToHtml } from '@/utils/markdown.js'
 
 export default {
   data() {
     return {
       topicId: '',
-      topic: null,
-      refreshing: false,
-      summaryError: ''
+      topic: null
     }
   },
   computed: {
@@ -94,21 +88,6 @@ export default {
     onCaptureChanged() {
       if (this.topicId) {
         this.topic = getTopicById(this.topicId)
-      }
-    },
-    async refreshSummary() {
-      if (this.refreshing || !this.topic) return
-      this.refreshing = true
-      this.summaryError = ''
-      try {
-        const summary = await summarizeTopic(this.topic)
-        this.topic = updateTopicSummary(this.topicId, summary)
-      } catch (e) {
-        // Honest failure — no fake summary text, per project rule.
-        this.summaryError = 'AI summary service unavailable right now — try again later'
-        console.error(e)
-      } finally {
-        this.refreshing = false
       }
     },
     confirmDelete() {
@@ -177,19 +156,6 @@ export default {
   color: #333;
   line-height: 1.6;
   margin-bottom: 20rpx;
-}
-.refresh-btn {
-  align-self: flex-start;
-  display: inline-block;
-  padding: 12rpx 24rpx;
-  border: 2rpx solid #F97316;
-  border-radius: 8rpx;
-  color: #F97316;
-  font-size: 24rpx;
-  width: fit-content;
-}
-.refresh-btn.disabled {
-  opacity: 0.5;
 }
 .error-text {
   display: block;
