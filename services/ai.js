@@ -294,7 +294,7 @@ export async function summarizeTopic(topic) {
 
 Summary format requirements:
 1. Present the user's actual views/thoughts as bullet points (each starting with "- " on its own line) — don't write hollow paraphrases like "discussed…" or "pointed out that… isn't necessarily good" — write out what the user's actual view or conclusion actually is.
-2. If multiple fragments belong to the same sub-topic, group them into one set of bullets together rather than listing overlapping content repeatedly; if there are clear categories, group them under short sub-headings.
+2. If multiple fragments belong to the same sub-topic, group them into one set of bullets together rather than listing overlapping content repeatedly; if there are clear categories, group them under short sub-headings written as "## Heading" on their own line. You may use **bold** for key terms and indented sub-bullets where they help; use no tables.
 3. If a fragment's information is incomplete (e.g. just a single word/term), you may supplement it with common-knowledge facts you're confident are correct, but never fabricate.
 4. If any fragment has an AI explanation attached (e.g. a word or phrase's meaning/translation), additionally compile a separate "Glossary" section at the end of the summary, one line per "term — meaning," so the user can look them up quickly; don't repeat these meanings in the main body.
 

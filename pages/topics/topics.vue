@@ -22,7 +22,7 @@
             </view>
             <text class="card-count">{{ topic.fragments.length }} notes</text>
           </view>
-          <text class="card-summary">{{ topic.summary || 'No summary yet' }}</text>
+          <text class="card-summary">{{ topic.summary ? markdownToPlain(topic.summary) : 'No summary yet' }}</text>
           <text class="card-time">{{ formatTime(topic.updatedAt) }}</text>
         </view>
       </view>
@@ -34,6 +34,7 @@
 </template>
 
 <script>
+import { markdownToPlain } from '@/utils/markdown.js'
 import { getTopics, getSelectedTopicId, deleteTopic } from '@/utils/storage.js'
 
 export default {
@@ -50,6 +51,7 @@ export default {
     if (this.$refs.captureBar) this.$refs.captureBar.refresh()
   },
   methods: {
+    markdownToPlain,
     refresh() {
       this.topics = getTopics()
       this.selectedTopicId = getSelectedTopicId()

@@ -8,7 +8,8 @@
       <view v-else>
         <view class="summary-card">
           <text class="section-label">Summary</text>
-          <text class="summary-text">{{ topic.summary || 'No summary yet' }}</text>
+          <rich-text v-if="topic.summary" class="summary-text" :nodes="summaryHtml" user-select></rich-text>
+          <text v-else class="summary-text">No summary yet</text>
           <view class="refresh-btn" @click="refreshSummary" :class="{ disabled: refreshing }">
             <text>{{ refreshing ? 'Generating…' : 'Regenerate Summary' }}</text>
           </view>
@@ -42,6 +43,7 @@
 <script>
 import { getTopicById, updateTopicSummary, setSelectedTopicId, deleteTopic } from '@/utils/storage.js'
 import { summarizeTopic } from '@/services/ai.js'
+import { markdownToHtml } from '@/utils/markdown.js'
 
 export default {
   data() {
@@ -53,6 +55,9 @@ export default {
     }
   },
   computed: {
+    summaryHtml() {
+      return markdownToHtml(this.topic ? this.topic.summary : '')
+    },
     reversedFragments() {
       return this.topic ? [...this.topic.fragments].reverse() : []
     }
@@ -172,7 +177,6 @@ export default {
   color: #333;
   line-height: 1.6;
   margin-bottom: 20rpx;
-  white-space: pre-wrap; /* preserve the AI's bullet/line-break formatting instead of squashing it into one paragraph */
 }
 .refresh-btn {
   align-self: flex-start;

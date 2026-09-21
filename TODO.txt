@@ -1,6 +1,6 @@
 
-Default to AI recomended topic when selecting a topic
-If the user asks for creating a new topic, then we should follow and create it.
+Default to AI recomended topic when selecting a topic. V
+If the user asks for creating a new topic, then we should follow and create it.V
 
 
 Markdown bug in summary section.
