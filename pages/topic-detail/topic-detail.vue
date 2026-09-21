@@ -15,7 +15,7 @@
 
         <text class="section-label fragments-label">Notes ({{ topic.fragments.length }})</text>
         <view class="fragment-list">
-          <view v-for="f in reversedFragments" :key="f.id" class="fragment-item">
+          <view v-for="f in reversedFragments" :key="f.id" class="fragment-item" @longpress="onFragmentLongPress(f)">
             <text class="fragment-text">{{ f.text }}</text>
             <view v-if="f.aiAnswer" class="ai-answer-block">
               <text class="ai-tag">🤖 AI Reply</text>
@@ -38,7 +38,7 @@
 </template>
 
 <script>
-import { getTopicById, setSelectedTopicId, deleteTopic } from '@/utils/storage.js'
+import { getTopicById, setSelectedTopicId, deleteTopic, deleteFragment } from '@/utils/storage.js'
 import { markdownToHtml } from '@/utils/markdown.js'
 
 export default {
@@ -89,6 +89,29 @@ export default {
       if (this.topicId) {
         this.topic = getTopicById(this.topicId)
       }
+    },
+    onFragmentLongPress(fragment) {
+      uni.showActionSheet({
+        itemList: ['Delete Note'],
+        itemColor: '#DD524D',
+        success: res => {
+          if (res.tapIndex === 0) this.confirmDeleteFragment(fragment)
+        }
+      })
+    },
+    confirmDeleteFragment(fragment) {
+      uni.showModal({
+        title: 'Delete Note',
+        content: 'Delete this note? This cannot be undone. The summary will update the next time you add a note.',
+        confirmText: 'Delete',
+        confirmColor: '#DD524D',
+        success: res => {
+          if (res.confirm) {
+            this.topic = deleteFragment(this.topicId, fragment.id)
+            uni.showToast({ title: 'Deleted', icon: 'success' })
+          }
+        }
+      })
     },
     confirmDelete() {
       if (!this.topic) return

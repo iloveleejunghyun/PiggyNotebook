@@ -110,6 +110,25 @@ export function markSummaryFailed(topicId) {
   return topic
 }
 
+/**
+ * Remove one note from a topic. The summary is left as is (it refreshes with
+ * the next note), except when no notes remain: then it is cleared, since a
+ * summary of nothing would be misleading.
+ * @returns {object|null} the updated topic, or null if not found
+ */
+export function deleteFragment(topicId, fragmentId) {
+  const topics = getTopics()
+  const topic = topics.find(t => t.id === topicId)
+  if (!topic) return null
+  topic.fragments = topic.fragments.filter(f => f.id !== fragmentId)
+  if (topic.fragments.length === 0) {
+    topic.summary = ''
+    topic.summaryFailed = false
+  }
+  saveTopics(topics)
+  return topic
+}
+
 export function deleteTopic(topicId) {
   saveTopics(getTopics().filter(t => t.id !== topicId))
 }
