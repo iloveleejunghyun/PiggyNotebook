@@ -3,8 +3,8 @@ Default to AI recomended topic when selecting a topic. V
 If the user asks for creating a new topic, then we should follow and create it.V
 Markdown bug in summary section. v
 
-Async of AI reply is ok for ios but not ok for Android.
-When do we not see the topic list?
+Fix async problems of replay and summary. v
+When do we not see the topic list? 
 
 AI remind user twice to switch topic, if user doesn't agree, when we shouldn't switch for this topic until user manually switch it.
 

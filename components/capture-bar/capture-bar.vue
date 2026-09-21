@@ -342,21 +342,13 @@ export default {
         return
       }
 
-      if (result.explicit) {
-        // The user asked for a new topic — follow the instruction: no review sheet.
-        const topic = createTopic(result.suggestedTitle)
-        trackTopicCreated()
-        this.saveTo(topic.id, { isNewTopic: true })
-        return
-      }
-
       if (result.decision === 'keep') {
         this.saveTo(result.topicId, { viaFastPath: true })
         return
       }
 
-      // 'move' or 'new': the model's pick is only a suggestion, so let the
-      // user confirm it (or edit a proposed title) in the review sheet.
+      // 'move' or 'new' (including an explicit "new topic" request): always
+      // let the user confirm, or rename the topic, in the review sheet.
       this.suggestion = {
         topicId: result.topicId,
         suggestedTitle: result.suggestedTitle,
@@ -371,7 +363,7 @@ export default {
       if (current) {
         this.mismatchTopicId = current.id
         this.currentTopicTitleAtMismatch = current.title
-        this.manualNotice = 'This looks like it might belong to a different topic.'
+        this.manualNotice = result.explicit ? '' : 'This looks like it might belong to a different topic.'
       } else {
         this.mismatchTopicId = null
         this.manualNotice = ''
