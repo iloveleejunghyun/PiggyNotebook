@@ -363,19 +363,18 @@ export default {
         isNewTopic: result.isNewTopic
       }
       this.newTopicTitle = result.isNewTopic ? result.suggestedTitle : ''
+      // Preselect the AI's pick; the current topic stays in the list (badged
+      // "Current") if the user wants to override it.
+      this.selectedOption = result.isNewTopic
+        ? { type: 'new', topicId: null }
+        : { type: 'existing', topicId: result.topicId }
       if (current) {
-        // Default to staying on the current topic — the model flagged a
-        // possible mismatch, it's not necessarily right, don't force a switch.
         this.mismatchTopicId = current.id
         this.currentTopicTitleAtMismatch = current.title
-        this.selectedOption = { type: 'existing', topicId: current.id }
-        this.manualNotice = 'This looks like it might belong to a different topic — switch?'
+        this.manualNotice = 'This looks like it might belong to a different topic.'
       } else {
         this.mismatchTopicId = null
         this.manualNotice = ''
-        this.selectedOption = result.isNewTopic
-          ? { type: 'new', topicId: null }
-          : { type: 'existing', topicId: result.topicId }
       }
       this.stage = 'review'
     },
