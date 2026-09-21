@@ -42,7 +42,10 @@ Actions: 1.Double the bid from $0.48 to $0.96. 2.Add English version.
 332 impressions → 6 taps (1.8%) → 1 install (16.7% tap→install) on 16 Sep
 1024 impressions -> 14 taps -> 1 install. 7 day campagin in Malaysia finished.
 
-Try the same ad in U.S.
+Try the same ad with $1.08 in the U.S.
+No impressions for the first day.
+69 impressions -> 1 tap -> 0 install. 9/21.
+	Add a new ad group to enable "search relevant".
 
 
 

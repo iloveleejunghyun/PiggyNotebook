@@ -1,16 +1,19 @@
 
+Default to AI recomended topic when selecting a topic
+If the user asks for creating a new topic, then we should follow and create it.
+
+
 Markdown bug in summary section.
+Async of AI reply is ok for ios but not ok for Android.
 
-
+AI remind user twice to switch topic, if user doesn't agree, when we shouldn't switch for this topic until user manually switch it.
 
 Allow AI to give response to more fragments. It should be more like discussing. We don't need long response like Doubao.
 Change capture-bar to use voice recording first.
-The Android user will be misleaded by ad on Pugongying.
+
+
 Speach time limit to avoid truncate speech.
-Default to AI recomended topic when selecting a topic
-AI remind user twice to switch topic, if user doesn't agree, when we shouldn't switch for this topic until user manually switch it.
-If the user asks for creating a new topic, then we should follow and create it.
-Async of AI reply is ok for ios but not ok for Android.
+Change to planner pattern.
 
 Features:
 Should we do a landing page for ios / android?
@@ -82,3 +85,4 @@ Apple Store review rejected:
 
 *Update versionName and versionCode which didn't take effect.
 	Delete unpackage folder.
+The Android user will be misleaded by ad on Pugongying. x

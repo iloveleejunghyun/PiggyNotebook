@@ -105,7 +105,7 @@ import {
   trackAIAnswerGiven,
   trackTopicReached3Fragments
 } from '@/utils/analytics.js'
-import { suggestTopic, checkTopicFit, summarizeTopic, answerIfNeeded, AIServiceUnavailableError } from '@/services/ai.js'
+import { chooseTopic, summarizeTopic, answerIfNeeded, AIServiceUnavailableError } from '@/services/ai.js'
 import { recognizeAudio } from '@/services/asr.js'
 import { setRecorderHandlers, startRecording, stopRecording } from '@/utils/recorder.js'
 
@@ -298,74 +298,86 @@ export default {
       uni.hideKeyboard()
       uni.showLoading({ title: 'AI thinking…', mask: true })
       try {
-        if (this.selectedTopic) {
-          await this.captureWithSelectedTopic()
-        } else {
-          await this.captureWithFullSuggest()
-        }
+        await this.routeAndCapture()
       } finally {
         this.loading = false
         uni.hideLoading()
       }
     },
-    // Fast path: a topic is already selected, so just check it still fits
-    // and save straight to it — only interrupt the user when the AI is
-    // confident this fragment belongs somewhere else.
-    async captureWithSelectedTopic() {
-      const topic = this.selectedTopic
+    // One AI call decides where the note goes (chooseTopic in services/ai.js).
+    // The model only picks an option; everything that follows from that pick
+    // is decided here in code. With no topics at all, `current` is null and
+    // the model just proposes a title for a new topic.
+    async routeAndCapture() {
+      const current = this.selectedTopic
       const otherTopics = this.topics
-        .filter(t => t.id !== topic.id)
+        .filter(t => !current || t.id !== current.id)
         .map(t => ({ id: t.id, title: t.title }))
+
+      let result
       try {
-        const result = await checkTopicFit(this.text.trim(), { title: topic.title }, otherTopics)
-        if (result.fits) {
-          this.saveTo(topic.id, { viaFastPath: true })
+        result = await chooseTopic(
+          this.text.trim(),
+          current ? { id: current.id, title: current.title } : null,
+          otherTopics
+        )
+      } catch (e) {
+        console.warn('chooseTopic failed:', e.message)
+        if (current) {
+          // Non-critical check — fail open rather than blocking the save on
+          // it. We're not faking a verdict, just skipping the check and
+          // trusting the user's own selection.
+          this.saveTo(current.id, { viaFastPath: true })
           return
         }
-        this.suggestion = { topicId: result.topicId, suggestedTitle: result.suggestedTitle, isNewTopic: result.isNewTopic }
-        this.newTopicTitle = result.isNewTopic ? result.suggestedTitle : ''
-        this.mismatchTopicId = topic.id
-        this.currentTopicTitleAtMismatch = topic.title
-        // Default to staying on the current topic — AI flagged a possible
-        // mismatch, it's not necessarily right, don't force a switch.
-        this.selectedOption = { type: 'existing', topicId: topic.id }
-        this.manualNotice = `This looks like it might belong to a different topic — switch?`
-        this.stage = 'review'
-      } catch (e) {
-        // Non-critical background check — fail open rather than blocking
-        // the save on it. We're not faking a "fits" verdict, we're just
-        // skipping the extra check and trusting the user's own selection.
-        console.warn('Topic fit check skipped, saving directly:', e.message)
-        this.saveTo(topic.id, { viaFastPath: true })
-      }
-    },
-    // Slow path: no topic selected yet (e.g. very first fragment ever) —
-    // fall back to full AI classification across all topics.
-    async captureWithFullSuggest() {
-      try {
-        const result = await suggestTopic(
-          this.text.trim(),
-          this.topics.map(t => ({ id: t.id, title: t.title }))
-        )
-        this.suggestion = result
-        this.newTopicTitle = result.isNewTopic ? result.suggestedTitle : ''
-        this.manualNotice = ''
-        this.selectedOption = result.isNewTopic
-          ? { type: 'new', topicId: null }
-          : { type: 'existing', topicId: result.topicId }
-      } catch (e) {
-        console.error('suggestTopic failed:', e.message)
+        // No topic to fall back on — force a real choice.
         this.suggestion = null
         this.newTopicTitle = ''
         this.manualNotice = e instanceof AIServiceUnavailableError
           ? 'AI suggestion service unavailable — please choose or create a topic manually'
           : 'Something went wrong — please choose or create a topic manually'
-        // AI failed entirely — don't pre-select anything, force a real choice
         this.selectedOption = { type: null, topicId: null }
-      } finally {
         this.mismatchTopicId = null
         this.stage = 'review'
+        return
       }
+
+      if (result.explicit) {
+        // The user asked for a new topic — follow the instruction: no review sheet.
+        const topic = createTopic(result.suggestedTitle)
+        trackTopicCreated()
+        this.saveTo(topic.id, { isNewTopic: true })
+        return
+      }
+
+      if (result.decision === 'keep') {
+        this.saveTo(result.topicId, { viaFastPath: true })
+        return
+      }
+
+      // 'move' or 'new': the model's pick is only a suggestion, so let the
+      // user confirm it (or edit a proposed title) in the review sheet.
+      this.suggestion = {
+        topicId: result.topicId,
+        suggestedTitle: result.suggestedTitle,
+        isNewTopic: result.isNewTopic
+      }
+      this.newTopicTitle = result.isNewTopic ? result.suggestedTitle : ''
+      if (current) {
+        // Default to staying on the current topic — the model flagged a
+        // possible mismatch, it's not necessarily right, don't force a switch.
+        this.mismatchTopicId = current.id
+        this.currentTopicTitleAtMismatch = current.title
+        this.selectedOption = { type: 'existing', topicId: current.id }
+        this.manualNotice = 'This looks like it might belong to a different topic — switch?'
+      } else {
+        this.mismatchTopicId = null
+        this.manualNotice = ''
+        this.selectedOption = result.isNewTopic
+          ? { type: 'new', topicId: null }
+          : { type: 'existing', topicId: result.topicId }
+      }
+      this.stage = 'review'
     },
     isAiSuggested(topicId) {
       return !!(this.suggestion && !this.suggestion.isNewTopic && this.suggestion.topicId === topicId)

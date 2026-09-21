@@ -31,6 +31,7 @@ function assertConfigured() {
 // exactly what the model said back (the raw JSON/text, before parsing).
 async function chatCompletion(messages, temperature = 0.3, label = 'ai') {
   assertConfigured()
+  console.log(`[AI:${label}] prompt sent:\n` + messages.map(m => `--- ${m.role} ---\n${m.content}`).join('\n'))
   let res
   try {
     res = await uni.request({
@@ -78,115 +79,155 @@ function extractJSON(text) {
   }
 }
 
-/**
- * Ask the AI to suggest an existing topic or a brand-new topic title for a fragment.
- * @param {string} text - the raw fragment text
- * @param {Array<{id: string, title: string}>} existingTopics
- * @returns {Promise<{ topicId: string|null, suggestedTitle: string, isNewTopic: boolean }>}
- * @throws {AIServiceUnavailableError} when the service isn't configured or the call fails
- */
-export async function suggestTopic(text, existingTopics) {
-  const topicList = existingTopics.length
-    ? existingTopics.map(t => `- id: ${t.id}, title: ${t.title}`).join('\n')
-    : '(no existing topics yet)'
+// Titles that say nothing about the subject. A topic with one of these names
+// becomes a black hole that swallows every later note, so a model-chosen title
+// like this is rejected in code (a title the user typed themselves is kept).
+const CATCH_ALL_TITLES = new Set([
+  'misc', 'miscellaneous', 'other', 'others', 'notes', 'note', 'random',
+  'random thoughts', 'thoughts', 'general', 'uncategorized', 'untitled'
+])
 
-  const prompt = `You are a note-organizing assistant. Help the user file a quick, unstructured fragment of a thought under a "topic".
+function isCatchAllTitle(title) {
+  return CATCH_ALL_TITLES.has(title.toLowerCase().replace(/[^a-z ]/g, '').trim())
+}
 
-Important principles: this product's core purpose is to prevent the user's thoughts from being scattered across too many topics, so:
-1. As long as the fragment has any reasonable connection to an existing topic — even if it's short or vague (a single word, an abbreviation) — as long as it could plausibly be a detail or sub-item of that topic, prefer filing it under that existing topic rather than creating a new one.
-2. Only create a new topic when the fragment is clearly unrelated to every existing topic.
-3. Be conservative even when creating a new topic: a topic should be a reasonably broad area/project/subject — don't spin up an overly narrow, specific new topic for a single fragment.
-4. Special case: if this fragment is a word/phrase/sentence in a different language than the rest of the user's notes (suggesting they're learning that language), and an existing topic like "Language Learning" (or a specific-language variant) already exists, prefer filing it there instead of creating a new, narrower language-related topic.
-5. Watch out for the "catch-all topic" trap: if an existing topic's name is itself vague and unfocused (e.g. "Misc", "Other", "Notes", "Random"), don't dump the fragment there just because it "could fit anything" — only use such a broad topic when the fragment genuinely has no specific direction at all. If the fragment has even a slight specific lean, create a more specific new topic, or file it under another genuinely relevant specific topic instead of taking the easy way into a catch-all.
-6. When creating a new topic, its title itself must never be a vague catch-all label like "Misc", "Other", "Notes", "Random" — such a label becomes a black hole that swallows every future fragment, effectively defeating classification. If you truly can't discern a specific direction, just use the fragment's own key wording as the title rather than inventing a generic category name.
+// Turn the model's JSON into a decision the app can act on, or say exactly
+// what was wrong with it. All branching lives here, not in the prompt.
+function interpretRouting(parsed, options, originalText, currentTopic) {
+  const explicit = parsed.explicit_new_topic === true
+  let choice = parsed.choice
+  if (typeof choice === 'string' && /^\d+$/.test(choice.trim())) choice = parseInt(choice, 10)
+  if (explicit) choice = 0
 
-Existing topics:
-${topicList}
-
-The user's new fragment:
-"""
-${text}
-"""
-
-Output only a JSON object, nothing else, in this format:
-{"topicId": "the existing topic's id, or null if creating a new topic", "suggestedTitle": "the topic name (return the existing topic's title verbatim if reusing one; for a new topic, give a concise title, no more than 6 words)", "isNewTopic": true or false}`
-
-  // Low temperature — this is a classification task, we want consistent
-  // categorization, not creative variation between near-identical inputs.
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0, 'suggestTopic')
-  const parsed = extractJSON(content)
-
-  if (typeof parsed.suggestedTitle !== 'string' || typeof parsed.isNewTopic !== 'boolean') {
-    throw new AIServiceUnavailableError(`AI JSON response missing expected fields: ${content}`)
+  if (!Number.isInteger(choice) || choice < 0 || choice > options.length) {
+    return { ok: false, reason: `"choice" must be an integer from 0 to ${options.length}` }
   }
+
+  if (choice === 0) {
+    const title = typeof parsed.new_topic_title === 'string' ? parsed.new_topic_title.trim() : ''
+    if (!title) return { ok: false, reason: '"new_topic_title" is required when choice is 0' }
+    if (!explicit && isCatchAllTitle(title)) {
+      return { ok: false, reason: `"${title}" is too vague as a topic title; name the specific subject` }
+    }
+    return {
+      ok: true,
+      value: {
+        decision: 'new',
+        topicId: null,
+        suggestedTitle: title.slice(0, 40), // matches the review sheet's input limit
+        isNewTopic: true,
+        explicit
+      }
+    }
+  }
+
+  const option = options[choice - 1]
   return {
-    topicId: parsed.isNewTopic ? null : (parsed.topicId || null),
-    suggestedTitle: parsed.suggestedTitle,
-    isNewTopic: parsed.isNewTopic
+    ok: true,
+    value: {
+      decision: option.kind,
+      topicId: option.kind === 'keep' ? currentTopic.id : option.topicId,
+      suggestedTitle: option.title,
+      isNewTopic: false,
+      explicit: false
+    }
   }
 }
 
 /**
- * Check whether a fragment fits the topic the user currently has selected
- * (the fast path — most captures should land here without ever calling
- * suggestTopic). Only flags a mismatch when the fragment is clearly about
- * something else; ambiguous/short fragments default to "fits".
- * @param {string} text - the raw fragment text
- * @param {{title: string}} currentTopic - the topic currently selected
+ * Decide where a new note belongs, in ONE call. This replaces the old
+ * suggestTopic (no topics yet) and checkTopicFit (a topic is selected): with
+ * no topics at all, currentTopic is null and otherTopics is empty, so the only
+ * option left is "create a new topic" and the model just proposes a title.
+ *
+ * The model picks a numbered option instead of walking a decision tree, and
+ * always returns the same JSON shape. Everything that follows from the pick is
+ * decided in code by the caller.
+ *
+ * @param {string} text - the raw note text
+ * @param {{id: string, title: string}|null} currentTopic - the selected topic, or null
  * @param {Array<{id: string, title: string}>} otherTopics - every other existing topic
- * @returns {Promise<{ fits: true } | { fits: false, topicId: string|null, suggestedTitle: string, isNewTopic: boolean }>}
- * @throws {AIServiceUnavailableError} when the service isn't configured or the call fails
+ * @returns {Promise<{
+ *   decision: 'keep'|'move'|'new',
+ *   topicId: string|null,      // the topic to save into (null when decision is 'new')
+ *   suggestedTitle: string,    // existing topic's title, or the proposed new title
+ *   isNewTopic: boolean,
+ *   explicit: boolean          // the user asked for a new topic: follow it, skip confirmation
+ * }>}
+ * @throws {AIServiceUnavailableError} when the service isn't configured, the call fails,
+ *   or the reply is still invalid after one retry
  */
-export async function checkTopicFit(text, currentTopic, otherTopics) {
-  const otherList = otherTopics.length
-    ? otherTopics.map(t => `- id: ${t.id}, title: ${t.title}`).join('\n')
-    : '(no other topics)'
+export async function chooseTopic(text, currentTopic, otherTopics) {
+  // Option 0 is always "new topic". The rest are numbered here so the model
+  // picks a number instead of copying opaque topic ids.
+  const options = []
+  if (currentTopic) options.push({ kind: 'keep', title: currentTopic.title })
+  otherTopics.forEach(t => options.push({ kind: 'move', title: t.title, topicId: t.id }))
 
-  const prompt = `You are a note-organizing assistant. The user is currently recording a string of fragments under the topic "${currentTopic.title}", and just recorded a new one — determine whether it still fits the current topic.
+  const optionLines = [
+    '0) Create a new topic',
+    ...options.map((o, i) => o.kind === 'keep'
+      ? `${i + 1}) Keep in the current topic: "${o.title}"`
+      : `${i + 1}) Move to the topic: "${o.title}"`)
+  ].join('\n')
 
-Judging standard (lean toward "fits" rather than readily deciding "doesn't fit"):
-1. As long as the fragment has any reasonable connection to the current topic — even if brief or vague (a single word, an abbreviation) — as long as it could plausibly be a detail or sub-item of the current topic, judge it as fitting.
-2. Only judge it as not fitting when the fragment clearly and unambiguously belongs to one of the other topics listed below, or is obviously a brand-new, unrelated subject.
-3. Special case: if this fragment is a word/phrase/sentence in a different language than the rest of the user's notes, and the current topic or one of the "other existing topics" is something like "Language Learning" (or a specific-language variant), judge it as fitting that language-learning topic.
-4. Watch out for the "catch-all topic" trap: if the current topic's own name is vague and unfocused (e.g. "Misc", "Other", "Notes", "Random"), don't automatically judge it as fitting just because it "could hold anything" — if the fragment has even a slight specific lean (related to a more specific topic in "other existing topics," or specific enough to stand as its own new topic), judge it as not fitting, and let it go somewhere more suitable.
+  const prompt = `You are a note-organizing assistant. The user just wrote a quick note. Decide where it belongs by picking exactly one option number.
 
-If judged as not fitting, you need to suggest a better destination — this product's core purpose is to prevent thoughts from being scattered across too many topics, so:
-- Prefer picking a reasonably related topic from "other existing topics" (even a loose connection) over creating a new one — but likewise avoid vague catch-all topics unless there's truly no more specific option.
-- Only create a new topic when the fragment is genuinely unrelated to every existing topic, and keep the new topic broad — don't open an overly narrow topic for a single fragment.
-- A new topic's title must never be a vague catch-all label like "Misc", "Other", "Notes", "Random" — such a label becomes a black hole that swallows every future fragment. If you truly can't discern a specific direction, just use the fragment's own key wording as the title.
+Options:
+${optionLines}
 
-Current topic: "${currentTopic.title}"
+Rules:
+1. This product exists to stop notes from scattering across too many topics. Prefer an existing option whenever the note has any plausible connection to it, even a loose one (a single word, an abbreviation).
+2. If there is a current topic, lean toward keeping it. Pick another option only when the note clearly belongs somewhere else.
+3. Pick 0 (new topic) only when the note is unrelated to every option. Keep the new topic broad, at most 6 words, and never name it something vague like "Misc", "Other", "Notes" or "Random". If you cannot tell the subject, use the note's own key words as the title.
+4. Do not pick an option just because its name is vague ("Misc", "Other"). Pick it only if the note has no specific subject at all.
+5. If the user explicitly asks for a new topic ("new topic: ...", "create a topic called ..."), always pick 0, set explicit_new_topic to true, and set new_topic_title to a short topic name (2-4 words) that captures what the note is about. If the user gave a name, use it; otherwise abstract the name from the note's content.
+6. A note that merely mentions the words "new topic" without asking for one (for example "I should write a new topic outline") is a normal note, so explicit_new_topic is false.
 
-Other existing topics:
-${otherList}
+Examples (in these examples the options were: 0) new topic, 1) keep current: "Sleep", 2) move to: "Startup Ideas"):
+Note: "No screens after 10pm" -> {"choice": 1, "new_topic_title": null, "explicit_new_topic": false}
+Note: "Pricing test: charge $9 for the first month" -> {"choice": 2, "new_topic_title": null, "explicit_new_topic": false}
+Note: "Renew passport in October" -> {"choice": 0, "new_topic_title": "Travel Admin", "explicit_new_topic": false}
+Note: "New topic: gym - squats on Monday" -> {"choice": 0, "new_topic_title": "Gym", "explicit_new_topic": true}
 
-The user's new fragment:
+The user's note:
 """
 ${text}
 """
 
-Output only a JSON object, nothing else:
-- If it fits the current topic: {"fits": true}
-- If not, give a better destination: {"fits": false, "topicId": "the more suitable existing topic's id, or null if suggesting a new topic", "suggestedTitle": "the topic name (return the existing topic's title verbatim if reusing one; for a new topic, give a concise title, no more than 6 words)", "isNewTopic": true or false}`
+Reply with only a JSON object with exactly these four keys:
+{"choice": <option number>, "new_topic_title": <string when choice is 0, otherwise null>, "explicit_new_topic": <true or false>}`
 
-  // Low temperature — this is a classification task, not creative writing.
-  const content = await chatCompletion([{ role: 'user', content: prompt }], 0, 'checkTopicFit')
-  const parsed = extractJSON(content)
+  const tryInterpret = reply => {
+    let parsed
+    try {
+      parsed = extractJSON(reply)
+    } catch (e) {
+      return { ok: false, reason: 'the reply was not a valid JSON object' }
+    }
+    return interpretRouting(parsed, options, text, currentTopic)
+  }
 
-  if (typeof parsed.fits !== 'boolean') {
-    throw new AIServiceUnavailableError(`AI JSON response missing "fits" field: ${content}`)
-  }
-  if (parsed.fits) return { fits: true }
+  // Low temperature: classification, not creative writing.
+  const messages = [{ role: 'user', content: prompt }]
+  let reply = await chatCompletion(messages, 0, 'chooseTopic')
+  let result = tryInterpret(reply)
 
-  if (typeof parsed.suggestedTitle !== 'string' || typeof parsed.isNewTopic !== 'boolean') {
-    throw new AIServiceUnavailableError(`AI JSON response missing expected fields: ${content}`)
+  if (!result.ok) {
+    // One retry, showing the model what was wrong with its own reply. The
+    // temperature is 0, so an identical retry would just repeat the mistake.
+    messages.push(
+      { role: 'assistant', content: reply },
+      { role: 'user', content: `Your reply was not valid: ${result.reason}. Reply again with only the JSON object in the required format.` }
+    )
+    reply = await chatCompletion(messages, 0, 'chooseTopic:retry')
+    result = tryInterpret(reply)
   }
-  return {
-    fits: false,
-    topicId: parsed.isNewTopic ? null : (parsed.topicId || null),
-    suggestedTitle: parsed.suggestedTitle,
-    isNewTopic: parsed.isNewTopic
+
+  if (!result.ok) {
+    throw new AIServiceUnavailableError(`AI routing reply was invalid: ${result.reason}`)
   }
+  return result.value
 }
 
 /**
